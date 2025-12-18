@@ -4,6 +4,13 @@
   "displayName": "package_name",
   "description": "package_description",
   "unity": "6000.0",
+  "samples": [
+       {
+         "displayName": "Example Scene",
+         "description": "An example scene showing how to use the package",
+         "path": "Samples~/ExampleScene"
+       }
+     ],
   "keywords": [
     "tools",
     "editor",
