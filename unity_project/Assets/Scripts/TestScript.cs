@@ -16,4 +16,9 @@ public class TestScript : MonoBehaviour
 	{
 		num += passed; 
 	}
+
+	public void QuitGame()
+	{
+		Application.Quit(); 
+	}
 }
