@@ -365,20 +365,31 @@ jobs:
           # Fetch all branches
           git fetch origin upm:upm 2>/dev/null || echo "upm branch doesn't exist yet"
           
+          # Create a temporary directory for the new branch content
+          mkdir -p /tmp/upm-content
+          
+          # Copy package contents to temp directory
+          shopt -s dotglob
+          cp -r package-build/* /tmp/upm-content/
+          shopt -u dotglob
+          
+          # Verify what we copied
+          echo "Contents to commit:"
+          ls -la /tmp/upm-content/
+          
           # Create or checkout upm branch (orphan to keep it clean)
           git checkout --orphan upm-temp
           
-          # Remove everything from staging and working directory
+          # Remove everything from git staging
           git rm -rf . 2>/dev/null || true
-          rm -rf * .* 2>/dev/null || true
           
-          # Copy ONLY the contents of package-build (not the directory itself)
+          # Copy from temp directory to root
           shopt -s dotglob
-          cp -r package-build/* .
+          cp -r /tmp/upm-content/* .
           shopt -u dotglob
           
           # Verify what we're about to commit
-          echo "Files to be committed:"
+          echo "Files in working directory:"
           ls -la
           
           # Add all files
