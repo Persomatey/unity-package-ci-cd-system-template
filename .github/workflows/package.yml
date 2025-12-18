@@ -258,12 +258,9 @@ jobs:
 
       - name: Create .meta files for package
         run: |
-          # Create .meta files for directories and files
-          # Unity Package Manager requires these
-          
           # Function to generate GUID
           generate_guid() {
-            echo $(cat /proc/sys/kernel/random/uuid | tr -d '-' | head -c 32)
+            cat /proc/sys/kernel/random/uuid | tr -d '-' | head -c 32
           }
           
           # Create .meta for Runtime folder
@@ -312,6 +309,27 @@ jobs:
           EOF
             fi
           done
+          
+          # Create .meta files for documentation files (they don't need GUIDs but Unity expects them)
+          for file in package-build/README.md package-build/CHANGELOG.md package-build/LICENSE.md package-build/package.json; do
+            if [ -f "$file" ] && [ ! -f "${file}.meta" ]; then
+              cat > "${file}.meta" << EOF
+          fileFormatVersion: 2
+          guid: $(generate_guid)
+          TextScriptImporter:
+            externalObjects: {}
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+            fi
+          done
+          
+          # Create .meta for Samples~ folder if it exists
+          if [ -d "package-build/Samples~" ]; then
+            # Note: Samples~ folder typically doesn't need a .meta since it's excluded from compilation
+            echo "Samples~ folder found (no .meta needed for tilde folders)"
+          fi
           
           echo ".meta files created"
 
@@ -362,34 +380,54 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Fetch all branches
-          git fetch origin upm:upm 2>/dev/null || echo "upm branch doesn't exist yet"
-          
-          # Create a temporary directory for the new branch content
+          # Create a clean temporary directory for the new branch content
+          rm -rf /tmp/upm-content 2>/dev/null || true
           mkdir -p /tmp/upm-content
           
-          # Copy package contents to temp directory
-          shopt -s dotglob
-          cp -r package-build/* /tmp/upm-content/
-          shopt -u dotglob
+          # Copy ONLY the package contents (not the directory itself)
+          shopt -s dotglob nullglob
+          for item in package-build/*; do
+            if [ -e "$item" ]; then
+              cp -r "$item" /tmp/upm-content/
+            fi
+          done
+          shopt -u dotglob nullglob
           
           # Verify what we copied
-          echo "Contents to commit:"
+          echo "Contents prepared for upm branch:"
           ls -la /tmp/upm-content/
+          
+          # Make absolutely sure we don't have unwanted files
+          rm -f /tmp/upm-content/*.tgz 2>/dev/null || true
+          rm -f /tmp/upm-content/*.zip 2>/dev/null || true
+          rm -rf /tmp/upm-content/package-build 2>/dev/null || true
+          
+          echo "After cleanup:"
+          ls -la /tmp/upm-content/
+          
+          # Fetch all branches
+          git fetch origin upm:upm 2>/dev/null || echo "upm branch doesn't exist yet"
           
           # Create or checkout upm branch (orphan to keep it clean)
           git checkout --orphan upm-temp
           
-          # Remove everything from git staging
+          # Remove everything from git index
           git rm -rf . 2>/dev/null || true
           
-          # Copy from temp directory to root
-          shopt -s dotglob
-          cp -r /tmp/upm-content/* .
-          shopt -u dotglob
+          # Remove all files from working directory except .git
+          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} + 2>/dev/null || true
           
-          # Verify what we're about to commit
-          echo "Files in working directory:"
+          # Copy from temp directory to root
+          shopt -s dotglob nullglob
+          for item in /tmp/upm-content/*; do
+            if [ -e "$item" ]; then
+              cp -r "$item" .
+            fi
+          done
+          shopt -u dotglob nullglob
+          
+          # Final verification
+          echo "Files in working directory (what will be committed):"
           ls -la
           
           # Add all files
@@ -397,7 +435,7 @@ jobs:
           
           # Show what's staged
           echo "Staged files:"
-          git diff --staged --name-only
+          git diff --staged --name-status
           
           # Commit
           git commit -m "Update package to version ${{ needs.determineVersion.outputs.package_version }}"
