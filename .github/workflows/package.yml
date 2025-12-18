@@ -322,15 +322,15 @@ jobs:
 
       - name: Create package archives
         run: |
-          # Create tarball
+          # Create tarball (already creates it in current directory)
           tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C package-build .
           
-          # Create zip
+          # Create zip (already creates it in current directory)
           (cd package-build && zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .)
           
-          # Move archives outside package-build to avoid copying them to upm branch
-          mv ${{ env.PACKAGE_NAME }}-*.tgz ./
-          mv ${{ env.PACKAGE_NAME }}-*.zip ./
+          # Verify archives are in the correct location (not in package-build)
+          echo "Archives created:"
+          ls -lh ${{ env.PACKAGE_NAME }}-*
           
           # Verify tarball contents
           echo "Tarball contents:"
