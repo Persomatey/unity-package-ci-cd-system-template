@@ -256,11 +256,64 @@ jobs:
           
           echo "LICENSE.md created"
 
-      - name: Remove .meta files from package
+      - name: Create .meta files for package
         run: |
-          # Remove all .meta files - Unity will regenerate them
-          find package-build -name "*.meta" -type f -delete
-          echo ".meta files removed"
+          # Create .meta files for directories and files
+          # Unity Package Manager requires these
+          
+          # Function to generate GUID
+          generate_guid() {
+            echo $(cat /proc/sys/kernel/random/uuid | tr -d '-' | head -c 32)
+          }
+          
+          # Create .meta for Runtime folder
+          if [ -d "package-build/Runtime" ]; then
+            cat > package-build/Runtime.meta << EOF
+          fileFormatVersion: 2
+          guid: $(generate_guid)
+          folderAsset: yes
+          DefaultImporter:
+            externalObjects: {}
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+          fi
+          
+          # Create .meta for Editor folder
+          if [ -d "package-build/Editor" ]; then
+            cat > package-build/Editor.meta << EOF
+          fileFormatVersion: 2
+          guid: $(generate_guid)
+          folderAsset: yes
+          DefaultImporter:
+            externalObjects: {}
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+          fi
+          
+          # Create .meta files for all .cs files
+          find package-build -name "*.cs" -type f | while read file; do
+            if [ ! -f "${file}.meta" ]; then
+              cat > "${file}.meta" << EOF
+          fileFormatVersion: 2
+          guid: $(generate_guid)
+          MonoImporter:
+            externalObjects: {}
+            serializedVersion: 2
+            defaultReferences: []
+            executionOrder: 0
+            icon: {instanceID: 0}
+            userData: 
+            assetBundleName: 
+            assetBundleVariant: 
+          EOF
+            fi
+          done
+          
+          echo ".meta files created"
 
       - name: Show package structure
         run: |
@@ -274,6 +327,10 @@ jobs:
           
           # Create zip
           (cd package-build && zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .)
+          
+          # Move archives outside package-build to avoid copying them to upm branch
+          mv ${{ env.PACKAGE_NAME }}-*.tgz ./
+          mv ${{ env.PACKAGE_NAME }}-*.zip ./
           
           # Verify tarball contents
           echo "Tarball contents:"
@@ -311,15 +368,25 @@ jobs:
           # Create or checkout upm branch (orphan to keep it clean)
           git checkout --orphan upm-temp
           
-          # Remove everything from staging
+          # Remove everything from staging and working directory
           git rm -rf . 2>/dev/null || true
+          rm -rf * .* 2>/dev/null || true
           
-          # Copy package structure to root
+          # Copy ONLY the contents of package-build (not the directory itself)
+          shopt -s dotglob
           cp -r package-build/* .
-          cp package-build/.* . 2>/dev/null || true
+          shopt -u dotglob
+          
+          # Verify what we're about to commit
+          echo "Files to be committed:"
+          ls -la
           
           # Add all files
           git add -A
+          
+          # Show what's staged
+          echo "Staged files:"
+          git diff --staged --name-only
           
           # Commit
           git commit -m "Update package to version ${{ needs.determineVersion.outputs.package_version }}"
