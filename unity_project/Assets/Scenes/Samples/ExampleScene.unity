@@ -1178,8 +1178,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1869366737}
-        m_TargetAssemblyTypeName: TestScript, Assembly-CSharp
+      - m_Target: {fileID: 1869366739}
+        m_TargetAssemblyTypeName: MyAmazingScript, Assembly-CSharp
         m_MethodName: QuitGame
         m_Mode: 1
         m_Arguments:
@@ -1311,8 +1311,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1869366737}
-        m_TargetAssemblyTypeName: TestScript, Assembly-CSharp
+      - m_Target: {fileID: 1869366739}
+        m_TargetAssemblyTypeName: MyAmazingScript, Assembly-CSharp
         m_MethodName: ChangeNum
         m_Mode: 3
         m_Arguments:
@@ -1444,8 +1444,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1869366737}
-        m_TargetAssemblyTypeName: TestScript, Assembly-CSharp
+      - m_Target: {fileID: 1869366739}
+        m_TargetAssemblyTypeName: MyAmazingScript, Assembly-CSharp
         m_MethodName: ChangeNum
         m_Mode: 3
         m_Arguments:
@@ -1639,7 +1639,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1869366738}
-  - component: {fileID: 1869366737}
+  - component: {fileID: 1869366739}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -1647,19 +1647,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1869366737
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1869366736}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 760abfe86ff658b4fb875d64e31733cd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  numTMP: {fileID: 160438192}
 --- !u!4 &1869366738
 Transform:
   m_ObjectHideFlags: 0
@@ -1675,6 +1662,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1869366739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1869366736}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fae12703660e3d34d94ee9bf54d61390, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  numTMP: {fileID: 160438192}
 --- !u!1 &1883522166
 GameObject:
   m_ObjectHideFlags: 0
