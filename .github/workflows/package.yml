@@ -12,11 +12,21 @@ permissions:
 
 env:
   PACKAGE_NAME: com.yourcompany.packagename
-  PACKAGE_PATH: unity_project/Packages/com.yourcompany.packagename
+  PROJECT_PATH: unity_project
+  # Define what goes where in your package
+  RUNTIME_SOURCE: Assets/Scripts/Runtime
+  EDITOR_SOURCE: Assets/Scripts/Editor
+  SAMPLES_SOURCE: Assets/Scenes/Samples
+  # Package info
+  PACKAGE_DISPLAY_NAME: "Your Package Name"
+  PACKAGE_DESCRIPTION: "Description of your package"
+  AUTHOR_NAME: "Your Name"
+  AUTHOR_EMAIL: "your.email@example.com"
+  AUTHOR_URL: "https://yourwebsite.com"
 
 jobs:
-  validatePackage:
-    name: Validate Package
+  validateSources:
+    name: Validate Source Assets
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
@@ -24,28 +34,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate package.json exists
+      - name: Check if source folders exist
         run: |
-          if [ ! -f "${{ env.PACKAGE_PATH }}/package.json" ]; then
-            echo "Error: package.json not found at ${{ env.PACKAGE_PATH }}/package.json"
-            exit 1
+          echo "Checking source folders..."
+          
+          if [ ! -d "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" ]; then
+            echo "Warning: Runtime source folder not found at ${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}"
+          else
+            echo "✓ Runtime source folder found"
           fi
-          echo "package.json found"
-          cat "${{ env.PACKAGE_PATH }}/package.json"
-
-      - name: Validate package structure
-        run: |
-          required_files=("package.json" "README.md")
-          for file in "${required_files[@]}"; do
-            if [ ! -f "${{ env.PACKAGE_PATH }}/$file" ]; then
-              echo "Warning: $file not found in package"
-            fi
-          done
+          
+          if [ ! -d "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" ]; then
+            echo "Warning: Editor source folder not found at ${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}"
+          else
+            echo "✓ Editor source folder found"
+          fi
+          
+          if [ ! -d "${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}" ]; then
+            echo "Warning: Samples source folder not found at ${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}"
+          else
+            echo "✓ Samples source folder found"
+          fi
 
   determineVersion:
     name: Determine Version
     runs-on: ubuntu-22.04
-    needs: validatePackage
+    needs: validateSources
     outputs:
       version: ${{ steps.version.outputs.tag }}
       package_version: ${{ steps.version.outputs.package_version }}
@@ -86,8 +100,8 @@ jobs:
           echo "tag=$next_tag" >> $GITHUB_OUTPUT
           echo "package_version=$package_version" >> $GITHUB_OUTPUT
 
-  updatePackageVersion:
-    name: Update Package Version
+  buildPackage:
+    name: Build Package from Assets
     runs-on: ubuntu-22.04
     needs: determineVersion
     steps:
@@ -96,44 +110,175 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update package.json version
+      - name: Create package structure
         run: |
-          package_json="${{ env.PACKAGE_PATH }}/package.json"
+          # Create package directory structure
+          mkdir -p package-build/Runtime
+          mkdir -p package-build/Editor
+          mkdir -p package-build/Samples~/ExampleScenes
+          mkdir -p package-build/Documentation~
           
-          # Use jq to update the version field
-          jq --arg version "${{ needs.determineVersion.outputs.package_version }}" \
-            '.version = $version' \
-            "$package_json" > temp.json && mv temp.json "$package_json"
-          
-          echo "Updated package.json:"
-          cat "$package_json"
+          echo "Package structure created"
 
-      - name: Commit version change
+      - name: Copy Runtime scripts
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add ${{ env.PACKAGE_PATH }}/package.json
-          git commit -m "Update package version to ${{ needs.determineVersion.outputs.package_version }}"
-          git push
+          if [ -d "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" ]; then
+            echo "Copying Runtime scripts from ${{ env.RUNTIME_SOURCE }}..."
+            cp -r ${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}/* package-build/Runtime/ 2>/dev/null || echo "No Runtime files to copy"
+            echo "Runtime files copied"
+          else
+            echo "No Runtime source folder found, skipping"
+          fi
 
-      - name: Create package archive
+      - name: Copy Editor scripts
         run: |
-          # Create a temporary directory for packaging
-          mkdir -p package-temp
+          if [ -d "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" ]; then
+            echo "Copying Editor scripts from ${{ env.EDITOR_SOURCE }}..."
+            cp -r ${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}/* package-build/Editor/ 2>/dev/null || echo "No Editor files to copy"
+            echo "Editor files copied"
+          else
+            echo "No Editor source folder found, skipping"
+          fi
+
+      - name: Copy Sample scenes
+        run: |
+          if [ -d "${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}" ]; then
+            echo "Copying Sample scenes from ${{ env.SAMPLES_SOURCE }}..."
+            cp -r ${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}/* package-build/Samples~/ExampleScenes/ 2>/dev/null || echo "No Sample files to copy"
+            echo "Sample files copied"
+          else
+            echo "No Samples source folder found, skipping"
+          fi
+
+      - name: Create package.json
+        run: |
+          # Check if samples exist to determine if we should include samples section
+          has_samples="false"
+          if [ -d "package-build/Samples~/ExampleScenes" ] && [ "$(ls -A package-build/Samples~/ExampleScenes)" ]; then
+            has_samples="true"
+          fi
           
-          # Copy all package contents to temp directory (including .meta files)
-          rsync -av --exclude='*.meta' ${{ env.PACKAGE_PATH }}/ package-temp/
+          # Create package.json
+          if [ "$has_samples" = "true" ]; then
+            cat > package-build/package.json << EOF
+          {
+            "name": "${{ env.PACKAGE_NAME }}",
+            "version": "${{ needs.determineVersion.outputs.package_version }}",
+            "displayName": "${{ env.PACKAGE_DISPLAY_NAME }}",
+            "description": "${{ env.PACKAGE_DESCRIPTION }}",
+            "unity": "6000.0",
+            "samples": [
+              {
+                "displayName": "Example Scenes",
+                "description": "Example scenes showing how to use the package",
+                "path": "Samples~/ExampleScenes"
+              }
+            ],
+            "keywords": [
+              "tools",
+              "editor",
+              "utility"
+            ],
+            "author": {
+              "name": "${{ env.AUTHOR_NAME }}",
+              "email": "${{ env.AUTHOR_EMAIL }}",
+              "url": "${{ env.AUTHOR_URL }}"
+            }
+          }
+          EOF
+          else
+            cat > package-build/package.json << EOF
+          {
+            "name": "${{ env.PACKAGE_NAME }}",
+            "version": "${{ needs.determineVersion.outputs.package_version }}",
+            "displayName": "${{ env.PACKAGE_DISPLAY_NAME }}",
+            "description": "${{ env.PACKAGE_DESCRIPTION }}",
+            "unity": "6000.0",
+            "keywords": [
+              "tools",
+              "editor",
+              "utility"
+            ],
+            "author": {
+              "name": "${{ env.AUTHOR_NAME }}",
+              "email": "${{ env.AUTHOR_EMAIL }}",
+              "url": "${{ env.AUTHOR_URL }}"
+            }
+          }
+          EOF
+          fi
           
-          # Create tarball from temp directory
-          tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C package-temp .
+          echo "package.json created:"
+          cat package-build/package.json
+
+      - name: Create README.md
+        run: |
+          cat > package-build/README.md << 'EOF'
+          # ${{ env.PACKAGE_DISPLAY_NAME }}
           
-          # Create zip from temp directory
-          (cd package-temp && zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .)
+          ${{ env.PACKAGE_DESCRIPTION }}
+          
+          ## Installation
+          
+          Install via Package Manager using the Git URL:
+          ```
+          https://github.com/${{ github.repository }}.git#${{ needs.determineVersion.outputs.version }}
+          ```
+          
+          ## Usage
+          
+          [Add usage instructions here]
+          
+          ## License
+          
+          [Add license information here]
+          EOF
+          
+          echo "README.md created"
+
+      - name: Create CHANGELOG.md
+        run: |
+          cat > package-build/CHANGELOG.md << 'EOF'
+          # Changelog
+          
+          ## [${{ needs.determineVersion.outputs.package_version }}] - $(date +%Y-%m-%d)
+          
+          [Add changelog entries here]
+          EOF
+          
+          echo "CHANGELOG.md created"
+
+      - name: Create LICENSE.md
+        run: |
+          cat > package-build/LICENSE.md << 'EOF'
+          [Add your license here]
+          EOF
+          
+          echo "LICENSE.md created"
+
+      - name: Remove .meta files from package
+        run: |
+          # Remove all .meta files - Unity will regenerate them
+          find package-build -name "*.meta" -type f -delete
+          echo ".meta files removed"
+
+      - name: Show package structure
+        run: |
+          echo "Final package structure:"
+          tree package-build/ || find package-build -type f
+
+      - name: Create package archives
+        run: |
+          # Create tarball
+          tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C package-build .
+          
+          # Create zip
+          (cd package-build && zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .)
           
           # Verify tarball contents
           echo "Tarball contents:"
-          tar -tzf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz | head -20
-      
+          tar -tzf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz | head -30
+
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -146,7 +291,7 @@ jobs:
   generateChangelog:
     name: Generate Changelog
     runs-on: ubuntu-22.04
-    needs: updatePackageVersion
+    needs: buildPackage
     outputs:
       changelog: ${{ steps.changelog.outputs.content }}
     steps:
@@ -201,10 +346,12 @@ jobs:
             
             Add this package to your Unity project using one of these methods:
             
-            1. **Via Package Manager (Git URL):**
+            1. **Via Package Manager (Git URL) - RECOMMENDED:**
                ```
-               https://github.com/${{ github.repository }}.git?path=${{ env.PACKAGE_PATH }}#${{ needs.determineVersion.outputs.version }}
+               https://github.com/${{ github.repository }}.git#${{ needs.determineVersion.outputs.version }}
                ```
+               
+               In Unity: Window → Package Manager → + → Add package from git URL
             
             2. **Via Package Manager (tarball):**
                - Download the `.tgz` file below
@@ -214,7 +361,7 @@ jobs:
             
             3. **Manual Installation:**
                - Download and extract the `.zip` file
-               - Copy the package folder to your project's `Packages` directory
+               - Copy the contents to your project's `Packages/${{ env.PACKAGE_NAME }}` directory
             
             ### Changelog
             
