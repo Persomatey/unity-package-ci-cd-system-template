@@ -1,15 +1,15 @@
-using TMPro;
+//using TMPro;
 using UnityEngine;
 
 public class MyAmazingScript : MonoBehaviour
 {
-	[SerializeField] private TextMeshProUGUI numTMP;
+	//[SerializeField] private TextMeshProUGUI numTMP;
 
-	private int num = 0;
+	[SerializeField] private int num = 0;
 
 	private void Update()
 	{
-		numTMP.text = $"{num}";
+		//numTMP.text = $"{num}";
 	}
 
 	public void ChangeNum(int passed)
