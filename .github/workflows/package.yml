@@ -12,7 +12,7 @@ permissions:
 
 env:
   PACKAGE_NAME: com.yourcompany.packagename
-  PACKAGE_PATH: Packages/com.yourcompany.packagename
+  PACKAGE_PATH: unity_project/Packages/com.yourcompany.packagename
 
 jobs:
   validatePackage:
