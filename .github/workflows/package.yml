@@ -1,0 +1,219 @@
+name: Build and Release Unity Package
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PACKAGE_NAME: com.yourcompany.packagename
+  PACKAGE_PATH: Packages/com.yourcompany.packagename
+
+jobs:
+  validatePackage:
+    name: Validate Package
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate package.json exists
+        run: |
+          if [ ! -f "${{ env.PACKAGE_PATH }}/package.json" ]; then
+            echo "Error: package.json not found at ${{ env.PACKAGE_PATH }}/package.json"
+            exit 1
+          fi
+          echo "package.json found"
+          cat "${{ env.PACKAGE_PATH }}/package.json"
+
+      - name: Validate package structure
+        run: |
+          required_files=("package.json" "README.md")
+          for file in "${required_files[@]}"; do
+            if [ ! -f "${{ env.PACKAGE_PATH }}/$file" ]; then
+              echo "Warning: $file not found in package"
+            fi
+          done
+
+  determineVersion:
+    name: Determine Version
+    runs-on: ubuntu-22.04
+    needs: validatePackage
+    outputs:
+      version: ${{ steps.version.outputs.tag }}
+      package_version: ${{ steps.version.outputs.package_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          git fetch --tags
+          last_tag=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          echo "Last tag: $last_tag"
+          
+          current_branch=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
+          echo "Current branch: $current_branch"
+          
+          if [[ -z "$last_tag" ]]; then
+            last_tag="v0.0.0"
+          fi
+          
+          if [[ "$current_branch" == "main" ]]; then
+            base=${last_tag%.*}
+            minor=${last_tag##*.}
+            next_tag="${base}.$((minor + 1))"
+          else
+            clean_branch=$(echo "$current_branch" | sed 's/[^a-zA-Z0-9._-]/-/g')
+            next_tag="${last_tag}-${clean_branch}"
+          fi
+          
+          # Remove 'v' prefix for package version
+          package_version="${next_tag#v}"
+          
+          echo "Next tag: $next_tag"
+          echo "Package version: $package_version"
+          echo "tag=$next_tag" >> $GITHUB_OUTPUT
+          echo "package_version=$package_version" >> $GITHUB_OUTPUT
+
+  updatePackageVersion:
+    name: Update Package Version
+    runs-on: ubuntu-22.04
+    needs: determineVersion
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update package.json version
+        run: |
+          package_json="${{ env.PACKAGE_PATH }}/package.json"
+          
+          # Use jq to update the version field
+          jq --arg version "${{ needs.determineVersion.outputs.package_version }}" \
+            '.version = $version' \
+            "$package_json" > temp.json && mv temp.json "$package_json"
+          
+          echo "Updated package.json:"
+          cat "$package_json"
+
+      - name: Create package archive
+        run: |
+          # Create a clean package directory
+          mkdir -p package-output
+          
+          # Copy the entire package directory
+          cp -r ${{ env.PACKAGE_PATH }} package-output/
+          
+          # Create tarball
+          cd package-output
+          tar -czf ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz $(basename ${{ env.PACKAGE_PATH }})
+          cd ..
+          
+          # Also create a zip for convenience
+          cd package-output
+          zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip $(basename ${{ env.PACKAGE_PATH }})
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-package
+          path: |
+            ${{ env.PACKAGE_NAME }}-*.tgz
+            ${{ env.PACKAGE_NAME }}-*.zip
+          retention-days: 1
+
+  generateChangelog:
+    name: Generate Changelog
+    runs-on: ubuntu-22.04
+    needs: updatePackageVersion
+    outputs:
+      changelog: ${{ steps.changelog.outputs.content }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          echo "Comparing commits from ${{ github.event.before }} to ${{ github.sha }}"
+          
+          last_tag=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+          if [ -z "$last_tag" ]; then
+            last_tag="(none)"
+            changelog=$(git log --pretty=format:'**%h** - %s%n%b%n' --reverse)
+          else
+            changelog=$(git log ${last_tag}..${{ github.sha }} --pretty=format:'**%h** - %s%n%b%n' --reverse)
+          fi
+          
+          if [ -z "$changelog" ]; then
+            changelog="No new commits since last release."
+          fi
+          
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$changelog" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  createRelease:
+    name: Create Release
+    runs-on: ubuntu-22.04
+    needs: [determineVersion, generateChangelog]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: unity-package
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.determineVersion.outputs.version }}
+          name: Release ${{ needs.determineVersion.outputs.version }}
+          body: |
+            ## Unity Package Release
+            
+            **Version:** ${{ needs.determineVersion.outputs.package_version }}
+            
+            ### Installation
+            
+            Add this package to your Unity project using one of these methods:
+            
+            1. **Via Package Manager (Git URL):**
+               ```
+               https://github.com/${{ github.repository }}.git?path=${{ env.PACKAGE_PATH }}#${{ needs.determineVersion.outputs.version }}
+               ```
+            
+            2. **Via Package Manager (tarball):**
+               - Download the `.tgz` file below
+               - In Unity, open Package Manager
+               - Click the '+' button and select "Add package from tarball"
+               - Select the downloaded `.tgz` file
+            
+            3. **Manual Installation:**
+               - Download and extract the `.zip` file
+               - Copy the package folder to your project's `Packages` directory
+            
+            ### Changelog
+            
+            ${{ needs.generateChangelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ env.PACKAGE_NAME }}-*.tgz
+            ${{ env.PACKAGE_NAME }}-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
