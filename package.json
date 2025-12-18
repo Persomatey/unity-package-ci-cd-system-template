@@ -1,0 +1,24 @@
+{
+  "name": "com.yourcompany.packagename",
+  "version": "0.0.24",
+  "displayName": "Your Package Name",
+  "description": "Description of your package",
+  "unity": "6000.0",
+  "samples": [
+    {
+      "displayName": "Example Scenes",
+      "description": "Example scenes showing how to use the package",
+      "path": "Samples~/ExampleScenes"
+    }
+  ],
+  "keywords": [
+    "tools",
+    "editor",
+    "utility"
+  ],
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "url": "https://yourwebsite.com"
+  }
+}
