@@ -1,4 +1,4 @@
-- name: Create package.json
+      - name: Create package.json
         run: |
           # Check if samples exist
           has_samples="false"
