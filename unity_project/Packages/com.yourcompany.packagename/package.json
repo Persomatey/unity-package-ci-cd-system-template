@@ -1,8 +1,8 @@
 {
-  "name": "com.yourcompany.toolname",
+  "name": "com.yourcompany.packagename",
   "version": "0.0.1",
-  "displayName": "tool_name",
-  "description": "tool_description",
+  "displayName": "package_name",
+  "description": "package_description",
   "unity": "6000.0",
   "keywords": [
     "tools",
