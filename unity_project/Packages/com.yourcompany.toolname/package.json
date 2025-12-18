@@ -1,0 +1,17 @@
+{
+  "name": "com.yourcompany.toolname",
+  "version": "0.0.1",
+  "displayName": "tool_name",
+  "description": "tool_description",
+  "unity": "6000.0",
+  "keywords": [
+    "tools",
+    "editor",
+    "utility"
+  ],
+  "author": {
+    "name": "your_name",
+    "email": "your_email@example.com",
+    "url": "https://your_website.com"
+  }
+}
