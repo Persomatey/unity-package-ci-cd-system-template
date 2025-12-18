@@ -292,29 +292,41 @@ jobs:
       - name: Push to upm branch
         if: github.ref == 'refs/heads/main'
         run: |
+          # Verify package-build exists
+          if [ ! -d "package-build" ]; then
+            echo "Error: package-build directory not found!"
+            ls -la
+            exit 1
+          fi
+          
+          echo "Package build contents:"
+          ls -la package-build/
+          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Create or checkout upm branch
-          git checkout -B upm
+          # Fetch all branches
+          git fetch origin upm:upm 2>/dev/null || echo "upm branch doesn't exist yet"
           
-          # Remove everything except .git
-          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} +
+          # Create or checkout upm branch (orphan to keep it clean)
+          git checkout --orphan upm-temp
+          
+          # Remove everything from staging
+          git rm -rf . 2>/dev/null || true
           
           # Copy package structure to root
           cp -r package-build/* .
-          cp -r package-build/.* . 2>/dev/null || true
+          cp package-build/.* . 2>/dev/null || true
           
           # Add all files
           git add -A
           
-          # Commit if there are changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update package to version ${{ needs.determineVersion.outputs.package_version }}"
-            git push -f origin upm
-          fi
+          # Commit
+          git commit -m "Update package to version ${{ needs.determineVersion.outputs.package_version }}"
+          
+          # Force push to upm branch
+          git branch -M upm
+          git push -f origin upm
           
           echo "Package pushed to upm branch"
 
