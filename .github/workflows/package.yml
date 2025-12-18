@@ -12,7 +12,7 @@ permissions:
 
 env:
   PACKAGE_NAME: com.yourcompany.packagename
-  PACKAGE_PATH: unity_project/Packages/com.yourcompany.packagename
+  PACKAGE_PATH: Packages/com.yourcompany.packagename
 
 jobs:
   validatePackage:
@@ -110,20 +110,13 @@ jobs:
 
       - name: Create package archive
         run: |
-          # Create a clean package directory
-          mkdir -p package-output
-          
-          # Copy the entire package directory
-          cp -r ${{ env.PACKAGE_PATH }} package-output/
-          
-          # Create tarball
-          cd package-output
-          tar -czf ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz $(basename ${{ env.PACKAGE_PATH }})
-          cd ..
+          # Create tarball with package.json at root
+          tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C ${{ env.PACKAGE_PATH }} .
           
           # Also create a zip for convenience
-          cd package-output
-          zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip $(basename ${{ env.PACKAGE_PATH }})
+          cd ${{ env.PACKAGE_PATH }}
+          zip -r ../../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .
+          cd ../..
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
