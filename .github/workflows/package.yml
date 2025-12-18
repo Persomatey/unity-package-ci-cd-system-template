@@ -110,21 +110,22 @@ jobs:
 
       - name: Create package archive
         run: |
-          # Create a clean package directory
-          mkdir -p package-output
+          # Create a temporary directory for packaging
+          mkdir -p package-temp
           
-          # Copy the entire package directory
-          cp -r ${{ env.PACKAGE_PATH }} package-output/
+          # Copy all package contents to temp directory, excluding .meta files
+          rsync -av --exclude='*.meta' ${{ env.PACKAGE_PATH }}/ package-temp/
           
-          # Create tarball
-          cd package-output
-          tar -czf ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz $(basename ${{ env.PACKAGE_PATH }})
-          cd ..
+          # Create tarball from temp directory
+          tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C package-temp .
           
-          # Also create a zip for convenience
-          cd package-output
-          zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip $(basename ${{ env.PACKAGE_PATH }})
-
+          # Create zip from temp directory
+          (cd package-temp && zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .)
+          
+          # Verify tarball contents
+          echo "Tarball contents:"
+          tar -tzf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz | head -20
+      
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
