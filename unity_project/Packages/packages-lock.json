@@ -231,7 +231,7 @@
       "url": "https://packages.unity.com"
     },
     "com.yourcompany.packagename": {
-      "version": "file:com.yourcompany.toolname",
+      "version": "file:com.yourcompany.packagename",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
