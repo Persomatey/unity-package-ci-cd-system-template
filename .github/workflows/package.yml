@@ -108,6 +108,14 @@ jobs:
           echo "Updated package.json:"
           cat "$package_json"
 
+      - name: Commit version change
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ env.PACKAGE_PATH }}/package.json
+          git commit -m "Update package version to ${{ needs.determineVersion.outputs.package_version }}"
+          git push
+
       - name: Create package archive
         run: |
           # Create a temporary directory for packaging
