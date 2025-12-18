@@ -120,32 +120,35 @@ jobs:
           
           echo "Package structure created"
 
-      - name: Copy Runtime scripts
+      - name: Copy Runtime scripts with .meta files
         run: |
           if [ -d "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" ]; then
             echo "Copying Runtime scripts from ${{ env.RUNTIME_SOURCE }}..."
-            cp -r ${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}/* package-build/Runtime/ 2>/dev/null || echo "No Runtime files to copy"
-            echo "Runtime files copied"
+            # Copy both .cs files and their .meta files to preserve GUIDs
+            find "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" -type f \( -name "*.cs" -o -name "*.cs.meta" \) -exec cp {} package-build/Runtime/ \; 2>/dev/null || echo "No Runtime files to copy"
+            echo "Runtime files copied with original .meta files"
           else
             echo "No Runtime source folder found, skipping"
           fi
 
-      - name: Copy Editor scripts
+      - name: Copy Editor scripts with .meta files
         run: |
           if [ -d "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" ]; then
             echo "Copying Editor scripts from ${{ env.EDITOR_SOURCE }}..."
-            cp -r ${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}/* package-build/Editor/ 2>/dev/null || echo "No Editor files to copy"
-            echo "Editor files copied"
+            # Copy both .cs files and their .meta files to preserve GUIDs
+            find "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" -type f \( -name "*.cs" -o -name "*.cs.meta" \) -exec cp {} package-build/Editor/ \; 2>/dev/null || echo "No Editor files to copy"
+            echo "Editor files copied with original .meta files"
           else
             echo "No Editor source folder found, skipping"
           fi
 
-      - name: Copy Sample scenes
+      - name: Copy Sample scenes with .meta files
         run: |
           if [ -d "${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}" ]; then
             echo "Copying Sample scenes from ${{ env.SAMPLES_SOURCE }}..."
+            # Copy all files including .meta files to preserve all references
             cp -r ${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}/* package-build/Samples~/ExampleScenes/ 2>/dev/null || echo "No Sample files to copy"
-            echo "Sample files copied"
+            echo "Sample files copied with .meta files"
           else
             echo "No Samples source folder found, skipping"
           fi
@@ -263,8 +266,8 @@ jobs:
             cat /proc/sys/kernel/random/uuid | tr -d '-' | head -c 32
           }
           
-          # Create .meta for Runtime folder
-          if [ -d "package-build/Runtime" ]; then
+          # Create .meta for Runtime folder (ONLY if it doesn't exist)
+          if [ -d "package-build/Runtime" ] && [ ! -f "package-build/Runtime.meta" ]; then
             cat > package-build/Runtime.meta << EOF
           fileFormatVersion: 2
           guid: $(generate_guid)
@@ -277,8 +280,8 @@ jobs:
           EOF
           fi
           
-          # Create .meta for Editor folder
-          if [ -d "package-build/Editor" ]; then
+          # Create .meta for Editor folder (ONLY if it doesn't exist)
+          if [ -d "package-build/Editor" ] && [ ! -f "package-build/Editor.meta" ]; then
             cat > package-build/Editor.meta << EOF
           fileFormatVersion: 2
           guid: $(generate_guid)
@@ -291,9 +294,10 @@ jobs:
           EOF
           fi
           
-          # Create .meta files for all .cs files
+          # Create .meta files ONLY for .cs files that don't already have them
           find package-build -name "*.cs" -type f | while read file; do
             if [ ! -f "${file}.meta" ]; then
+              echo "Creating .meta for ${file}"
               cat > "${file}.meta" << EOF
           fileFormatVersion: 2
           guid: $(generate_guid)
@@ -307,6 +311,8 @@ jobs:
             assetBundleName: 
             assetBundleVariant: 
           EOF
+            else
+              echo "Preserving existing .meta for ${file}"
             fi
           done
           
@@ -331,7 +337,7 @@ jobs:
             echo "Samples~ folder found (no .meta needed for tilde folders)"
           fi
           
-          echo ".meta files created"
+          echo ".meta files created/verified"
 
       - name: Show package structure
         run: |
