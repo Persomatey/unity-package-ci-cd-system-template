@@ -122,7 +122,7 @@ jobs:
           mkdir -p package-temp
           
           # Copy all package contents to temp directory (including .meta files)
-          rsync -av ${{ env.PACKAGE_PATH }}/ package-temp/
+          rsync -av --exclude='*.meta' ${{ env.PACKAGE_PATH }}/ package-temp/
           
           # Create tarball from temp directory
           tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C package-temp .
