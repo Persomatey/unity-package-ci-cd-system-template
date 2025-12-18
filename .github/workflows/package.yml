@@ -114,9 +114,8 @@ jobs:
           tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C ${{ env.PACKAGE_PATH }} .
           
           # Also create a zip for convenience
-          cd ${{ env.PACKAGE_PATH }}
-          zip -r ../../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .
-          cd ../..
+          (cd ${{ env.PACKAGE_PATH }} && zip -r - .) > ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip
+
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
