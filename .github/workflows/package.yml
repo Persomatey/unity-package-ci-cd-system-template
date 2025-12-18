@@ -222,7 +222,7 @@ jobs:
           
           Install via Package Manager using the Git URL:
           ```
-          https://github.com/${{ github.repository }}.git#${{ needs.determineVersion.outputs.version }}
+          https://github.com/${{ github.repository }}.git#upm
           ```
           
           ## Usage
@@ -288,6 +288,36 @@ jobs:
             ${{ env.PACKAGE_NAME }}-*.zip
           retention-days: 1
 
+      # NEW: Push package structure to upm branch
+      - name: Push to upm branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create or checkout upm branch
+          git checkout -B upm
+          
+          # Remove everything except .git
+          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} +
+          
+          # Copy package structure to root
+          cp -r package-build/* .
+          cp -r package-build/.* . 2>/dev/null || true
+          
+          # Add all files
+          git add -A
+          
+          # Commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update package to version ${{ needs.determineVersion.outputs.package_version }}"
+            git push -f origin upm
+          fi
+          
+          echo "Package pushed to upm branch"
+
   generateChangelog:
     name: Generate Changelog
     runs-on: ubuntu-22.04
@@ -348,18 +378,27 @@ jobs:
             
             1. **Via Package Manager (Git URL) - RECOMMENDED:**
                ```
-               https://github.com/${{ github.repository }}.git#${{ needs.determineVersion.outputs.version }}
+               https://github.com/${{ github.repository }}.git#upm
                ```
                
                In Unity: Window → Package Manager → + → Add package from git URL
+               
+               This will always give you the latest version from the `upm` branch.
             
-            2. **Via Package Manager (tarball):**
+            2. **Via Package Manager (Specific Version):**
+               ```
+               https://github.com/${{ github.repository }}.git#${{ needs.determineVersion.outputs.version }}
+               ```
+               
+               This locks to this specific release version.
+            
+            3. **Via Package Manager (tarball):**
                - Download the `.tgz` file below
                - In Unity, open Package Manager
                - Click the '+' button and select "Add package from tarball"
                - Select the downloaded `.tgz` file
             
-            3. **Manual Installation:**
+            4. **Manual Installation:**
                - Download and extract the `.zip` file
                - Copy the contents to your project's `Packages/${{ env.PACKAGE_NAME }}` directory
             
@@ -373,3 +412,21 @@ jobs:
             ${{ env.PACKAGE_NAME }}-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag the upm branch with the version
+      - name: Checkout upm branch
+        uses: actions/checkout@v4
+        with:
+          ref: upm
+          fetch-depth: 0
+
+      - name: Tag upm branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create tag on upm branch
+          git tag -f ${{ needs.determineVersion.outputs.version }}
+          git push -f origin ${{ needs.determineVersion.outputs.version }}
+          
+          echo "Tagged upm branch with ${{ needs.determineVersion.outputs.version }}"
