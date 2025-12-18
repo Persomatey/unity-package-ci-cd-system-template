@@ -1,24 +1,27 @@
 using TMPro;
 using UnityEngine;
 
-public class TestScript : MonoBehaviour
+namespace unity_packages_cd_cd_system_template
 {
-	[SerializeField] private TextMeshProUGUI numTMP; 
-
-	private int num = 0;
-
-	private void Update()
+	public class TestScript : MonoBehaviour
 	{
-		numTMP.text = $"{num}"; 
-	}
+		[SerializeField] private TextMeshProUGUI numTMP;
 
-	public void ChangeNum(int passed)
-	{
-		num += passed; 
-	}
+		private int num = 0;
 
-	public void QuitGame()
-	{
-		Application.Quit(); 
+		private void Update()
+		{
+			numTMP.text = $"{num}";
+		}
+
+		public void ChangeNum(int passed)
+		{
+			num += passed;
+		}
+
+		public void QuitGame()
+		{
+			Application.Quit();
+		}
 	}
 }
