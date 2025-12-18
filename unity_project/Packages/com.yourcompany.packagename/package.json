@@ -1,6 +1,6 @@
 {
   "name": "com.yourcompany.packagename",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "displayName": "package_name",
   "description": "package_description",
   "unity": "6000.0",
