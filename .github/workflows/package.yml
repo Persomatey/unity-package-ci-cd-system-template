@@ -3,8 +3,6 @@ name: Build and Release Unity Package
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -12,551 +10,81 @@ permissions:
 
 env:
   PACKAGE_NAME: com.yourcompany.packagename
-  PROJECT_PATH: unity_project
-  # Define what goes where in your package
-  RUNTIME_SOURCE: Assets/Scripts/Runtime
-  EDITOR_SOURCE: Assets/Scripts/Editor
-  SAMPLES_SOURCE: Assets/Scenes/Samples
-  # Package info
-  PACKAGE_DISPLAY_NAME: "Your Package Name"
-  PACKAGE_DESCRIPTION: "Description of your package"
-  AUTHOR_NAME: "Your Name"
-  AUTHOR_EMAIL: "your.email@example.com"
-  AUTHOR_URL: "https://yourwebsite.com"
+  PACKAGE_PATH: Packages/com.yourcompany.packagename
 
 jobs:
-  validateSources:
-    name: Validate Source Assets
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check if source folders exist
-        run: |
-          echo "Checking source folders..."
-          
-          if [ ! -d "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" ]; then
-            echo "Warning: Runtime source folder not found at ${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}"
-          else
-            echo "✓ Runtime source folder found"
-          fi
-          
-          if [ ! -d "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" ]; then
-            echo "Warning: Editor source folder not found at ${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}"
-          else
-            echo "✓ Editor source folder found"
-          fi
-          
-          if [ ! -d "${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}" ]; then
-            echo "Warning: Samples source folder not found at ${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}"
-          else
-            echo "✓ Samples source folder found"
-          fi
-
   determineVersion:
-    name: Determine Version
     runs-on: ubuntu-22.04
-    needs: validateSources
     outputs:
       version: ${{ steps.version.outputs.tag }}
       package_version: ${{ steps.version.outputs.package_version }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Determine version
-        id: version
+      - id: version
         run: |
           git fetch --tags
-          last_tag=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
-          echo "Last tag: $last_tag"
-          
-          current_branch=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
-          echo "Current branch: $current_branch"
-          
-          if [[ -z "$last_tag" ]]; then
-            last_tag="v0.0.0"
-          fi
-          
-          if [[ "$current_branch" == "main" ]]; then
-            base=${last_tag%.*}
-            minor=${last_tag##*.}
-            next_tag="${base}.$((minor + 1))"
-          else
-            clean_branch=$(echo "$current_branch" | sed 's/[^a-zA-Z0-9._-]/-/g')
-            next_tag="${last_tag}-${clean_branch}"
-          fi
-          
-          # Remove 'v' prefix for package version
-          package_version="${next_tag#v}"
-          
-          echo "Next tag: $next_tag"
-          echo "Package version: $package_version"
-          echo "tag=$next_tag" >> $GITHUB_OUTPUT
-          echo "package_version=$package_version" >> $GITHUB_OUTPUT
+          last_tag=$(git tag | grep '^v' | sort -V | tail -n1)
+          [ -z "$last_tag" ] && last_tag="v0.0.0"
 
-  buildPackage:
-    name: Build Package from Assets
+          base=${last_tag%.*}
+          patch=${last_tag##*.}
+          next_tag="${base}.$((patch + 1))"
+
+          echo "tag=$next_tag" >> $GITHUB_OUTPUT
+          echo "package_version=${next_tag#v}" >> $GITHUB_OUTPUT
+
+  validatePackage:
     runs-on: ubuntu-22.04
     needs: determineVersion
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Create package structure
+      - name: Validate package structure
         run: |
-          # Create package directory structure
-          mkdir -p package-build/Runtime
-          mkdir -p package-build/Editor
-          mkdir -p package-build/Samples~/ExampleScenes
-          mkdir -p package-build/Documentation~
-          
-          echo "Package structure created"
+          test -d "${{ env.PACKAGE_PATH }}/Runtime"
+          test -f "${{ env.PACKAGE_PATH }}/package.json"
+          echo "Package structure OK"
 
-      - name: Copy Runtime scripts with .meta files
-        run: |
-          if [ -d "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" ]; then
-            echo "Copying Runtime scripts from ${{ env.RUNTIME_SOURCE }}..."
-            # Copy both .cs files and their .meta files to preserve GUIDs
-            find "${{ env.PROJECT_PATH }}/${{ env.RUNTIME_SOURCE }}" -type f -name "*.cs" -exec cp {} package-build/Runtime/ \; 2>/dev/null || echo "No Runtime files to copy"
-            echo "Runtime files copied with original .meta files"
-          else
-            echo "No Runtime source folder found, skipping"
-          fi
-
-      - name: Copy Editor scripts with .meta files
-        run: |
-          if [ -d "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" ]; then
-            echo "Copying Editor scripts from ${{ env.EDITOR_SOURCE }}..."
-            # Copy both .cs files and their .meta files to preserve GUIDs
-            find "${{ env.PROJECT_PATH }}/${{ env.EDITOR_SOURCE }}" -type f -name "*.cs" -exec cp {} package-build/Editor/ \; 2>/dev/null || echo "No Editor files to copy"
-            echo "Editor files copied with original .meta files"
-          else
-            echo "No Editor source folder found, skipping"
-          fi
-
-      - name: Copy Sample scenes with .meta files
-        run: |
-          if [ -d "${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}" ]; then
-            echo "Copying Sample scenes from ${{ env.SAMPLES_SOURCE }}..."
-            # Copy all files including .meta files to preserve all references
-            cp -r ${{ env.PROJECT_PATH }}/${{ env.SAMPLES_SOURCE }}/* package-build/Samples~/ExampleScenes/ 2>/dev/null || echo "No Sample files to copy"
-            echo "Sample files copied with .meta files"
-          else
-            echo "No Samples source folder found, skipping"
-          fi
-
-      - name: Create package.json
-        run: |
-          # Check if samples exist
-          has_samples="false"
-          if [ -d "package-build/Samples~/ExampleScenes" ] && [ "$(ls -A package-build/Samples~/ExampleScenes)" ]; then
-            has_samples="true"
-          fi
-          
-          # Create package.json
-          if [ "$has_samples" = "true" ]; then
-            cat > package-build/package.json << EOF
-          {
-            "name": "${{ env.PACKAGE_NAME }}",
-            "version": "${{ needs.determineVersion.outputs.package_version }}",
-            "displayName": "${{ env.PACKAGE_DISPLAY_NAME }}",
-            "description": "${{ env.PACKAGE_DESCRIPTION }}",
-            "unity": "6000.0",
-            "dependencies": {
-              "com.unity.textmeshpro": "3.0.6"
-            },
-            "samples": [
-              {
-                "displayName": "Example Scenes",
-                "description": "Example scenes showing how to use the package",
-                "path": "Samples~/ExampleScenes"
-              }
-            ],
-            "keywords": [
-              "tools",
-              "editor",
-              "utility"
-            ],
-            "author": {
-              "name": "${{ env.AUTHOR_NAME }}",
-              "email": "${{ env.AUTHOR_EMAIL }}",
-              "url": "${{ env.AUTHOR_URL }}"
-            }
-          }
-          EOF
-          else
-            cat > package-build/package.json << EOF
-          {
-            "name": "${{ env.PACKAGE_NAME }}",
-            "version": "${{ needs.determineVersion.outputs.package_version }}",
-            "displayName": "${{ env.PACKAGE_DISPLAY_NAME }}",
-            "description": "${{ env.PACKAGE_DESCRIPTION }}",
-            "unity": "6000.0",
-            "dependencies": {
-              "com.unity.textmeshpro": "3.0.6"
-            },
-            "keywords": [
-              "tools",
-              "editor",
-              "utility"
-            ],
-            "author": {
-              "name": "${{ env.AUTHOR_NAME }}",
-              "email": "${{ env.AUTHOR_EMAIL }}",
-              "url": "${{ env.AUTHOR_URL }}"
-            }
-          }
-          EOF
-          fi
-          
-          echo "package.json created:"
-          cat package-build/package.json
-
-      - name: Create README.md
-        run: |
-          cat > package-build/README.md << 'EOF'
-          # ${{ env.PACKAGE_DISPLAY_NAME }}
-          
-          ${{ env.PACKAGE_DESCRIPTION }}
-          
-          ## Installation
-          
-          Install via Package Manager using the Git URL:
-          ```
-          https://github.com/${{ github.repository }}.git#upm
-          ```
-          
-          ## Usage
-          
-          [Add usage instructions here]
-          
-          ## License
-          
-          [Add license information here]
-          EOF
-          
-          echo "README.md created"
-
-      - name: Create CHANGELOG.md
-        run: |
-          cat > package-build/CHANGELOG.md << 'EOF'
-          # Changelog
-          
-          ## [${{ needs.determineVersion.outputs.package_version }}] - $(date +%Y-%m-%d)
-          
-          [Add changelog entries here]
-          EOF
-          
-          echo "CHANGELOG.md created"
-
-      - name: Create LICENSE.md
-        run: |
-          cat > package-build/LICENSE.md << 'EOF'
-          [Add your license here]
-          EOF
-          
-          echo "LICENSE.md created"
-
-      - name: Generate .meta files for package (fresh GUIDs)
-        run: |
-          generate_guid() {
-            cat /proc/sys/kernel/random/uuid | tr -d '-' | head -c 32
-          }
-      
-          create_folder_meta() {
-            local path="$1"
-            cat > "${path}.meta" << EOF
-            fileFormatVersion: 2
-            guid: $(generate_guid)
-            folderAsset: yes
-            DefaultImporter:
-              externalObjects: {}
-              userData:
-              assetBundleName:
-              assetBundleVariant:
-            EOF
-          }
-      
-          create_text_meta() {
-            local path="$1"
-            cat > "${path}.meta" << EOF
-            fileFormatVersion: 2
-            guid: $(generate_guid)
-            TextScriptImporter:
-              externalObjects: {}
-              userData:
-              assetBundleName:
-              assetBundleVariant:
-            EOF
-          }
-      
-          create_cs_meta() {
-            local path="$1"
-            cat > "${path}.meta" << EOF
-            fileFormatVersion: 2
-            guid: $(generate_guid)
-            MonoImporter:
-              externalObjects: {}
-              serializedVersion: 2
-              defaultReferences: []
-              executionOrder: 0
-              icon: {instanceID: 0}
-              userData:
-              assetBundleName:
-              assetBundleVariant:
-            EOF
-          }
-      
-          # Folder metas
-          for folder in Runtime Editor Samples~ Documentation~; do
-            if [ -d "package-build/$folder" ]; then
-              create_folder_meta "package-build/$folder"
-            fi
-          done
-      
-          # Script metas
-          find package-build -name "*.cs" -type f | while read file; do
-            create_cs_meta "$file"
-          done
-      
-          # Text asset metas
-          for file in package-build/package.json package-build/README.md package-build/CHANGELOG.md package-build/LICENSE.md; do
-            if [ -f "$file" ]; then
-              create_text_meta "$file"
-            fi
-          done
-
-
-      - name: Show package structure
-        run: |
-          echo "Final package structure:"
-          tree package-build/ || find package-build -type f
-
-      - name: Create package archives
-        run: |
-          # Create tarball (already creates it in current directory)
-          tar -czf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz -C package-build .
-          
-          # Create zip (already creates it in current directory)
-          (cd package-build && zip -r ../${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.zip .)
-          
-          # Verify archives are in the correct location (not in package-build)
-          echo "Archives created:"
-          ls -lh ${{ env.PACKAGE_NAME }}-*
-          
-          # Verify tarball contents
-          echo "Tarball contents:"
-          tar -tzf ${{ env.PACKAGE_NAME }}-${{ needs.determineVersion.outputs.package_version }}.tgz | head -30
-
-      - name: Upload package artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: unity-package
-          path: |
-            ${{ env.PACKAGE_NAME }}-*.tgz
-            ${{ env.PACKAGE_NAME }}-*.zip
-          retention-days: 1
-
-      # NEW: Push package structure to upm branch
-      - name: Push to upm branch
-        if: github.ref == 'refs/heads/main'
-        run: |
-          # Verify package-build exists
-          if [ ! -d "package-build" ]; then
-            echo "Error: package-build directory not found!"
-            ls -la
-            exit 1
-          fi
-          
-          echo "Package build contents:"
-          ls -la package-build/
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Create a clean temporary directory for the new branch content
-          rm -rf /tmp/upm-content 2>/dev/null || true
-          mkdir -p /tmp/upm-content
-          
-          # Copy ONLY the package contents (not the directory itself)
-          shopt -s dotglob nullglob
-          for item in package-build/*; do
-            if [ -e "$item" ]; then
-              cp -r "$item" /tmp/upm-content/
-            fi
-          done
-          shopt -u dotglob nullglob
-          
-          # Verify what we copied
-          echo "Contents prepared for upm branch:"
-          ls -la /tmp/upm-content/
-          
-          # Make absolutely sure we don't have unwanted files
-          rm -f /tmp/upm-content/*.tgz 2>/dev/null || true
-          rm -f /tmp/upm-content/*.zip 2>/dev/null || true
-          rm -rf /tmp/upm-content/package-build 2>/dev/null || true
-          
-          echo "After cleanup:"
-          ls -la /tmp/upm-content/
-          
-          # Fetch all branches
-          git fetch origin upm:upm 2>/dev/null || echo "upm branch doesn't exist yet"
-          
-          # Create or checkout upm branch (orphan to keep it clean)
-          git checkout --orphan upm-temp
-          
-          # Remove everything from git index
-          git rm -rf . 2>/dev/null || true
-          
-          # Remove all files from working directory except .git
-          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} + 2>/dev/null || true
-          
-          # Copy from temp directory to root
-          shopt -s dotglob nullglob
-          for item in /tmp/upm-content/*; do
-            if [ -e "$item" ]; then
-              cp -r "$item" .
-            fi
-          done
-          shopt -u dotglob nullglob
-          
-          # Final verification
-          echo "Files in working directory (what will be committed):"
-          ls -la
-          
-          # Add all files
-          git add -A
-          
-          # Show what's staged
-          echo "Staged files:"
-          git diff --staged --name-status
-          
-          # Commit
-          git commit -m "Update package to version ${{ needs.determineVersion.outputs.package_version }}"
-          
-          # Force push to upm branch
-          git branch -M upm
-          git push -f origin upm
-          
-          echo "Package pushed to upm branch"
-
-  generateChangelog:
-    name: Generate Changelog
+  pushUpm:
     runs-on: ubuntu-22.04
-    needs: buildPackage
-    outputs:
-      changelog: ${{ steps.changelog.outputs.content }}
+    needs: [determineVersion, validatePackage]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Generate changelog
-        id: changelog
+      - name: Push package to upm branch
         run: |
-          echo "Comparing commits from ${{ github.event.before }} to ${{ github.sha }}"
-          
-          last_tag=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
-          if [ -z "$last_tag" ]; then
-            last_tag="(none)"
-            changelog=$(git log --pretty=format:'**%h** - %s%n%b%n' --reverse)
-          else
-            changelog=$(git log ${last_tag}..${{ github.sha }} --pretty=format:'**%h** - %s%n%b%n' --reverse)
-          fi
-          
-          if [ -z "$changelog" ]; then
-            changelog="No new commits since last release."
-          fi
-          
-          echo "content<<EOF" >> $GITHUB_OUTPUT
-          echo "$changelog" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions@users.noreply.github.com"
+
+          git checkout --orphan upm
+          git rm -rf .
+
+          mkdir -p Packages
+          cp -r "${{ env.PACKAGE_PATH }}" Packages/
+
+          git add .
+          git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
+          git push -f origin upm
 
   createRelease:
-    name: Create Release
     runs-on: ubuntu-22.04
-    needs: [determineVersion, generateChangelog]
-    if: github.ref == 'refs/heads/main'
+    needs: [determineVersion, pushUpm]
     steps:
-      - name: Download package artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: unity-package
+      - uses: actions/checkout@v4
 
-      - name: Create GitHub Release
+      - name: Create release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.determineVersion.outputs.version }}
           name: Release ${{ needs.determineVersion.outputs.version }}
           body: |
-            ## Unity Package Release
-            
-            **Version:** ${{ needs.determineVersion.outputs.package_version }}
-            
-            ### Installation
-            
-            Add this package to your Unity project using one of these methods:
-            
-            1. **Via Package Manager (Git URL) - RECOMMENDED:**
-               ```
-               https://github.com/${{ github.repository }}.git#upm
-               ```
-               
-               In Unity: Window → Package Manager → + → Add package from git URL
-               
-               This will always give you the latest version from the `upm` branch.
-            
-            2. **Via Package Manager (Specific Version):**
-               ```
-               https://github.com/${{ github.repository }}.git#${{ needs.determineVersion.outputs.version }}
-               ```
-               
-               This locks to this specific release version.
-            
-            3. **Via Package Manager (tarball):**
-               - Download the `.tgz` file below
-               - In Unity, open Package Manager
-               - Click the '+' button and select "Add package from tarball"
-               - Select the downloaded `.tgz` file
-            
-            4. **Manual Installation:**
-               - Download and extract the `.zip` file
-               - Copy the contents to your project's `Packages/${{ env.PACKAGE_NAME }}` directory
-            
-            ### Changelog
-            
-            ${{ needs.generateChangelog.outputs.changelog }}
-          draft: false
-          prerelease: false
-          files: |
-            ${{ env.PACKAGE_NAME }}-*.tgz
-            ${{ env.PACKAGE_NAME }}-*.zip
+            Install via Package Manager:
+
+            https://github.com/${{ github.repository }}.git#upm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Tag the upm branch with the version
-      - name: Checkout upm branch
-        uses: actions/checkout@v4
-        with:
-          ref: upm
-          fetch-depth: 0
-
-      - name: Tag upm branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Create tag on upm branch
-          git tag -f ${{ needs.determineVersion.outputs.version }}
-          git push -f origin ${{ needs.determineVersion.outputs.version }}
-          
-          echo "Tagged upm branch with ${{ needs.determineVersion.outputs.version }}"
