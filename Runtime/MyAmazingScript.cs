@@ -1,0 +1,27 @@
+//using TMPro;
+using UnityEngine;
+
+namespace YourCompany.PackageName
+{
+	public class MyAmazingScript : MonoBehaviour
+	{
+		//[SerializeField] private TextMeshProUGUI numTMP;
+
+		[SerializeField] private int num = 0;
+
+		private void Update()
+		{
+			//numTMP.text = $"{num}";
+		}
+
+		public void ChangeNum(int passed)
+		{
+			num += passed;
+		}
+
+		public void QuitGame()
+		{
+			Application.Quit();
+		}
+	}
+}
