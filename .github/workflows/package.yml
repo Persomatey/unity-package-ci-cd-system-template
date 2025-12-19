@@ -11,8 +11,6 @@ permissions:
 env:
   PROJECT_PATH: unity_project
   PACKAGE_NAME: com.yourcompany.packagename
-  PACKAGE_PATH: ${{ env.PROJECT_PATH }}/Packages/${{ env.PACKAGE_NAME }}
-
 
 jobs:
   determineVersion:
@@ -74,8 +72,8 @@ jobs:
       
           # Make temporary folder to save package
           TMP_DIR=$(mktemp -d)
-          echo "Saving package from $PACKAGE_PATH to $TMP_DIR"
-          cp -r "$PACKAGE_PATH" "$TMP_DIR/"
+          echo "Saving package from $PROJECT_PATH/Packages/$PACKAGE_NAME to $TMP_DIR"
+          cp -r "$PROJECT_PATH/Packages/$PACKAGE_NAME" "$TMP_DIR/"
       
           # Switch to orphan upm branch
           git checkout --orphan upm
@@ -85,7 +83,7 @@ jobs:
       
           # Recreate Packages folder and copy package back
           mkdir -p Packages
-          cp -r "$TMP_DIR/$(basename $PACKAGE_PATH)" Packages/
+          cp -r "$TMP_DIR/$PACKAGE_NAME" Packages/
       
           # Add, commit, and push
           git add .
