@@ -265,6 +265,76 @@ jobs:
           
           echo "LICENSE.md created"
 
+      - name: Generate .meta files for package (fresh GUIDs)
+        run: |
+          generate_guid() {
+            cat /proc/sys/kernel/random/uuid | tr -d '-' | head -c 32
+          }
+      
+          create_folder_meta() {
+            local path="$1"
+            cat > "${path}.meta" << EOF
+            fileFormatVersion: 2
+            guid: $(generate_guid)
+            folderAsset: yes
+            DefaultImporter:
+              externalObjects: {}
+              userData:
+              assetBundleName:
+              assetBundleVariant:
+            EOF
+          }
+      
+          create_text_meta() {
+            local path="$1"
+            cat > "${path}.meta" << EOF
+            fileFormatVersion: 2
+            guid: $(generate_guid)
+            TextScriptImporter:
+              externalObjects: {}
+              userData:
+              assetBundleName:
+              assetBundleVariant:
+            EOF
+          }
+      
+          create_cs_meta() {
+            local path="$1"
+            cat > "${path}.meta" << EOF
+            fileFormatVersion: 2
+            guid: $(generate_guid)
+            MonoImporter:
+              externalObjects: {}
+              serializedVersion: 2
+              defaultReferences: []
+              executionOrder: 0
+              icon: {instanceID: 0}
+              userData:
+              assetBundleName:
+              assetBundleVariant:
+            EOF
+          }
+      
+          # Folder metas
+          for folder in Runtime Editor Samples~ Documentation~; do
+            if [ -d "package-build/$folder" ]; then
+              create_folder_meta "package-build/$folder"
+            fi
+          done
+      
+          # Script metas
+          find package-build -name "*.cs" -type f | while read file; do
+            create_cs_meta "$file"
+          done
+      
+          # Text asset metas
+          for file in package-build/package.json package-build/README.md package-build/CHANGELOG.md package-build/LICENSE.md; do
+            if [ -f "$file" ]; then
+              create_text_meta "$file"
+            fi
+          done
+
+
       - name: Show package structure
         run: |
           echo "Final package structure:"
