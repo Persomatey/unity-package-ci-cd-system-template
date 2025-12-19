@@ -44,9 +44,18 @@ jobs:
 
       - name: Validate package structure
         run: |
-          test -d "${{ env.PACKAGE_PATH }}/Runtime"
-          test -f "${{ env.PACKAGE_PATH }}/package.json"
+          if [ ! -d "${{ env.PACKAGE_PATH }}/Runtime" ]; then
+            echo "::error ::Runtime folder missing!"
+            exit 1
+          fi
+      
+          if [ ! -f "${{ env.PACKAGE_PATH }}/package.json" ]; then
+            echo "::error ::package.json missing!"
+            exit 1
+          fi
+      
           echo "Package structure OK"
+
 
   pushUpm:
     runs-on: ubuntu-22.04
