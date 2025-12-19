@@ -9,8 +9,10 @@ permissions:
   contents: write
 
 env:
+  PROJECT_PATH: unity_project
   PACKAGE_NAME: com.yourcompany.packagename
-  PACKAGE_PATH: unity_project/Packages/com.yourcompany.packagename
+  PACKAGE_PATH: ${{ env.PROJECT_PATH }}/Packages/${{ env.PACKAGE_NAME }}
+
 
 jobs:
   determineVersion:
@@ -69,13 +71,23 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
-
+      
+          # Make temporary folder to save package
+          TMP_DIR=$(mktemp -d)
+          echo "Saving package from $PACKAGE_PATH to $TMP_DIR"
+          cp -r "$PACKAGE_PATH" "$TMP_DIR/"
+      
+          # Switch to orphan upm branch
           git checkout --orphan upm
-          git rm -rf .
-
+      
+          # Remove everything from current working tree (except .git)
+          git rm -rf . || true
+      
+          # Recreate Packages folder and copy package back
           mkdir -p Packages
-          cp -r "${{ env.PACKAGE_PATH }}" Packages/
-
+          cp -r "$TMP_DIR/$(basename $PACKAGE_PATH)" Packages/
+      
+          # Add, commit, and push
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
           git push -f origin upm
