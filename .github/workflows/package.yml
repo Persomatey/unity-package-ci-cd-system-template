@@ -44,17 +44,24 @@ jobs:
 
       - name: Validate package structure
         run: |
-          if [ ! -d "${{ env.PACKAGE_PATH }}/Runtime" ]; then
+          set -euo pipefail
+      
+          PACKAGE_PATH="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+      
+          echo "Validating package at: $PACKAGE_PATH"
+      
+          if [ ! -d "$PACKAGE_PATH/Runtime" ]; then
             echo "::error ::Runtime folder missing!"
             exit 1
           fi
       
-          if [ ! -f "${{ env.PACKAGE_PATH }}/package.json" ]; then
+          if [ ! -f "$PACKAGE_PATH/package.json" ]; then
             echo "::error ::package.json missing!"
             exit 1
           fi
       
           echo "Package structure OK"
+
 
 
   pushUpm:
