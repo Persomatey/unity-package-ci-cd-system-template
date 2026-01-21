@@ -62,8 +62,6 @@ jobs:
       
           echo "Package structure OK"
 
-
-
   pushUpm:
     runs-on: ubuntu-22.04
     needs: [determineVersion, validatePackage]
@@ -77,22 +75,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
       
-          # Make temporary folder to save package
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+      
+          echo "Publishing package from: $PACKAGE_SRC"
+      
+          if [ ! -f "$PACKAGE_SRC/package.json" ]; then
+            echo "::error ::package.json not found in $PACKAGE_SRC"
+            exit 1
+          fi
+      
+          # Save package contents
           TMP_DIR=$(mktemp -d)
-          echo "Saving package from $PROJECT_PATH/Packages/$PACKAGE_NAME to $TMP_DIR"
-          cp -r "$PROJECT_PATH/Packages/$PACKAGE_NAME" "$TMP_DIR/"
+          cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
       
-          # Switch to orphan upm branch
+          # Create fresh upm branch
           git checkout --orphan upm
-      
-          # Remove everything from current working tree (except .git)
           git rm -rf . || true
       
-          # Recreate Packages folder and copy package back
-          mkdir -p Packages
-          cp -r "$TMP_DIR/$PACKAGE_NAME" Packages/
+          # Copy package contents to repo root
+          cp -R "$TMP_DIR/." .
       
-          # Add, commit, and push
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
           git push -f origin upm
