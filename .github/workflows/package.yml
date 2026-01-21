@@ -80,37 +80,47 @@ jobs:
           jq ".version = \"$VERSION\"" "$PACKAGE_JSON" > package.json.tmp
           mv package.json.tmp "$PACKAGE_JSON"
 
-      - name: Prepare UPM package structure (Samples → Samples~)
+      - name: Prepare UPM package structure
         shell: bash
         run: |
           set -e
-
-          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-
-          echo "Preparing UPM package structure from $PACKAGE_SRC"
-
-          # Create temp folder
-          TMP_DIR=$(mktemp -d)
-
+      
+          SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+          OUT=$(mktemp -d)
+      
+          echo "Preparing UPM package from $SRC → $OUT"
+      
           # Copy everything except Samples
           rsync -av \
             --exclude="Samples" \
-            "$PACKAGE_SRC/" \
-            "$TMP_DIR/"
-
+            "$SRC/" \
+            "$OUT/"
+      
           # Convert Samples → Samples~
-          if [ -d "$PACKAGE_SRC/Samples" ]; then
-            echo "Converting Samples → Samples~"
-            mkdir -p "$TMP_DIR/Samples~"
-            rsync -av "$PACKAGE_SRC/Samples/" "$TMP_DIR/Samples~/"
-          fi
-
-          # Replace original package contents with prepared version
-          rm -rf "$PACKAGE_SRC"
-          mkdir -p "$(dirname "$PACKAGE_SRC")"
-          mv "$TMP_DIR" "$PACKAGE_SRC"
-
-          echo "UPM package structure ready"
+          if [ -d "$SRC/Samples" ]; then
+            mkdir -p "$OUT/Samples~"
+            rsync -av "$SRC/Samples/" "$OUT/Samples~/"
+      
+            # Remove orphaned Samples.meta if present
+            rm -f "$OUT/Samples.meta"
+      
+            # Ensure Samples~.meta exists
+            if [ ! -f "$OUT/Samples~.meta" ]; then
+              cat > "$OUT/Samples~.meta" <<EOF
+            fileFormatVersion: 2
+            guid: $(uuidgen | tr -d '-')
+            folderAsset: yes
+            DefaultImporter:
+              externalObjects: {}
+              userData:
+              assetBundleName:
+              assetBundleVariant:
+              EOF
+                fi
+              fi
+          
+              echo "UPM package prepared at $OUT"
+              echo "UPM_OUT=$OUT" >> $GITHUB_ENV
 
       - name: Push package to upm branch
         run: |
