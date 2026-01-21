@@ -70,6 +70,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Update package.json version
+        run: |
+          PACKAGE_JSON="$PROJECT_PATH/Packages/$PACKAGE_NAME/package.json"
+          VERSION="${{ needs.determineVersion.outputs.package_version }}"
+  
+          echo "Setting package.json version to $VERSION"
+  
+          jq ".version = \"$VERSION\"" "$PACKAGE_JSON" > package.json.tmp
+          mv package.json.tmp "$PACKAGE_JSON"
+
       - name: Push package to upm branch
         run: |
           git config user.name "github-actions[bot]"
