@@ -112,6 +112,11 @@ jobs:
 
           echo "UPM package structure ready"
 
+      - name: Validate UPM package
+        run: |
+          test -f "Packages/com.yourcompany.packagename/package.json"
+          test -d "Packages/com.yourcompany.packagename/Runtime"
+
       - name: Push package to upm branch
         run: |
           git config user.name "github-actions[bot]"
