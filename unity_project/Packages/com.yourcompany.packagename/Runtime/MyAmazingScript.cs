@@ -17,6 +17,7 @@ namespace YourCompany.PackageName
 		public void ChangeNum(int passed)
 		{
 			num += passed;
+			Debug.Log($"Num chanegd to {num}"); 
 		}
 
 		public void QuitGame()
