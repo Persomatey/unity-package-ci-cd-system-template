@@ -62,8 +62,6 @@ jobs:
       
           echo "Package structure OK"
 
-
-
   pushUpm:
     runs-on: ubuntu-22.04
     needs: [determineVersion, validatePackage]
@@ -72,27 +70,73 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Update package.json version
+        run: |
+          PACKAGE_JSON="$PROJECT_PATH/Packages/$PACKAGE_NAME/package.json"
+          VERSION="${{ needs.determineVersion.outputs.package_version }}"
+  
+          echo "Setting package.json version to $VERSION"
+  
+          jq ".version = \"$VERSION\"" "$PACKAGE_JSON" > package.json.tmp
+          mv package.json.tmp "$PACKAGE_JSON"
+
+      - name: Prepare UPM package structure (Samples → Samples~)
+        shell: bash
+        run: |
+          set -e
+
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+
+          echo "Preparing UPM package structure from $PACKAGE_SRC"
+
+          # Create temp folder
+          TMP_DIR=$(mktemp -d)
+
+          # Copy everything except Samples
+          rsync -av \
+            --exclude="Samples" \
+            "$PACKAGE_SRC/" \
+            "$TMP_DIR/"
+
+          # Convert Samples → Samples~
+          if [ -d "$PACKAGE_SRC/Samples" ]; then
+            echo "Converting Samples → Samples~"
+            mkdir -p "$TMP_DIR/Samples~"
+            rsync -av "$PACKAGE_SRC/Samples/" "$TMP_DIR/Samples~/"
+          fi
+
+          # Replace original package contents with prepared version
+          rm -rf "$PACKAGE_SRC"
+          mkdir -p "$(dirname "$PACKAGE_SRC")"
+          mv "$TMP_DIR" "$PACKAGE_SRC"
+
+          echo "UPM package structure ready"
+
       - name: Push package to upm branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
       
-          # Make temporary folder to save package
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+      
+          echo "Publishing package from: $PACKAGE_SRC"
+      
+          if [ ! -f "$PACKAGE_SRC/package.json" ]; then
+            echo "::error ::package.json not found in $PACKAGE_SRC"
+            exit 1
+          fi
+      
+          # Save package contents
           TMP_DIR=$(mktemp -d)
-          echo "Saving package from $PROJECT_PATH/Packages/$PACKAGE_NAME to $TMP_DIR"
-          cp -r "$PROJECT_PATH/Packages/$PACKAGE_NAME" "$TMP_DIR/"
+          cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
       
-          # Switch to orphan upm branch
+          # Create fresh upm branch
           git checkout --orphan upm
-      
-          # Remove everything from current working tree (except .git)
           git rm -rf . || true
       
-          # Recreate Packages folder and copy package back
-          mkdir -p Packages
-          cp -r "$TMP_DIR/$PACKAGE_NAME" Packages/
+          # Copy package contents to repo root
+          cp -R "$TMP_DIR/." .
       
-          # Add, commit, and push
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
           git push -f origin upm
