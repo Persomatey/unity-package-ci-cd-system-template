@@ -80,65 +80,66 @@ jobs:
           jq ".version = \"$VERSION\"" "$PACKAGE_JSON" > package.json.tmp
           mv package.json.tmp "$PACKAGE_JSON"
 
-      - name: Prepare UPM package (non-destructive)
+      - name: Prepare UPM package structure (Samples → Samples~)
         shell: bash
         run: |
           set -e
-      
-          SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-          OUT=$(mktemp -d)
-      
-          echo "Preparing UPM package from:"
-          echo "  $SRC"
-          echo "Into temp dir:"
-          echo "  $OUT"
-      
+
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+
+          echo "Preparing UPM package structure from $PACKAGE_SRC"
+
+          # Create temp folder
+          TMP_DIR=$(mktemp -d)
+
           # Copy everything except Samples
           rsync -av \
             --exclude="Samples" \
-            "$SRC/" \
-            "$OUT/"
-      
+            "$PACKAGE_SRC/" \
+            "$TMP_DIR/"
+
           # Convert Samples → Samples~
-          if [ -d "$SRC/Samples" ]; then
-            mkdir -p "$OUT/Samples~"
-            rsync -av "$SRC/Samples/" "$OUT/Samples~/"
-      
-            # Remove orphaned Samples.meta
-            rm -f "$OUT/Samples.meta"
-      
-            # Create Samples~.meta if missing
-            if [ ! -f "$OUT/Samples~.meta" ]; then
-              cat > "$OUT/Samples~.meta" <<EOF
-          fileFormatVersion: 2
-          guid: $(uuidgen | tr -d '-')
-          folderAsset: yes
-          DefaultImporter:
-            externalObjects: {}
-            userData:
-            assetBundleName:
-            assetBundleVariant:
-              EOF
-                    fi
-                  fi
-              
-                  echo "UPM_OUT=$OUT" >> "$GITHUB_ENV"
+          if [ -d "$PACKAGE_SRC/Samples" ]; then
+            echo "Converting Samples → Samples~"
+            mkdir -p "$TMP_DIR/Samples~"
+            rsync -av "$PACKAGE_SRC/Samples/" "$TMP_DIR/Samples~/"
+          fi
+
+          # Replace original package contents with prepared version
+          rm -rf "$PACKAGE_SRC"
+          mkdir -p "$(dirname "$PACKAGE_SRC")"
+          mv "$TMP_DIR" "$PACKAGE_SRC"
+
+          echo "UPM package structure ready"
 
       - name: Push package to upm branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
       
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
+      
+          echo "Publishing package from: $PACKAGE_SRC"
+      
+          if [ ! -f "$PACKAGE_SRC/package.json" ]; then
+            echo "::error ::package.json not found in $PACKAGE_SRC"
+            exit 1
+          fi
+      
+          # Save package contents
+          TMP_DIR=$(mktemp -d)
+          cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
+      
+          # Create fresh upm branch
           git checkout --orphan upm
           git rm -rf . || true
       
-          cp -R "$UPM_OUT/." .
+          # Copy package contents to repo root
+          cp -R "$TMP_DIR/." .
       
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
           git push -f origin upm
-
-      
 
   createRelease:
     runs-on: ubuntu-22.04
