@@ -7,5 +7,12 @@
   "author": {
     "name": "Your Name or Company",
     "url": "https://github.com/yourcompany"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Example Scene",
+      "description": "A sample scene demonstrating the package features.",
+      "path": "Samples~/ExampleScene"
+    }
+  ]
 }
