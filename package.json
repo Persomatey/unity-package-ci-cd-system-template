@@ -1,0 +1,18 @@
+{
+  "name": "com.yourcompany.packagename",
+  "version": "0.0.44",
+  "displayName": "Your Package Name",
+  "description": "A short description of what this package does.",
+  "unity": "6000.0",
+  "author": {
+    "name": "Your Name or Company",
+    "url": "https://github.com/yourcompany"
+  },
+  "samples": [
+    {
+      "displayName": "Example Scene",
+      "description": "A sample scene demonstrating the package features.",
+      "path": "Samples~/ExampleScene"
+    }
+  ]
+}
