@@ -80,66 +80,90 @@ jobs:
           jq ".version = \"$VERSION\"" "$PACKAGE_JSON" > package.json.tmp
           mv package.json.tmp "$PACKAGE_JSON"
 
-      - name: Prepare UPM package structure (Samples → Samples~)
+      - name: Build clean UPM package
         shell: bash
         run: |
-          set -e
-
+          set -euo pipefail
+      
           PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-
-          echo "Preparing UPM package structure from $PACKAGE_SRC"
-
-          # Create temp folder
-          TMP_DIR=$(mktemp -d)
-
-          # Copy everything except Samples
+          UPM_BUILD="$(mktemp -d)"
+      
+          echo "Building clean UPM package from: $PACKAGE_SRC"
+          echo "UPM build dir: $UPM_BUILD"
+      
+          # Copy everything EXCEPT Samples
           rsync -av \
             --exclude="Samples" \
             "$PACKAGE_SRC/" \
-            "$TMP_DIR/"
-
+            "$UPM_BUILD/"
+      
           # Convert Samples → Samples~
           if [ -d "$PACKAGE_SRC/Samples" ]; then
             echo "Converting Samples → Samples~"
-            mkdir -p "$TMP_DIR/Samples~"
-            rsync -av "$PACKAGE_SRC/Samples/" "$TMP_DIR/Samples~/"
+            mkdir -p "$UPM_BUILD/Samples~"
+            rsync -av "$PACKAGE_SRC/Samples/" "$UPM_BUILD/Samples~/"
           fi
+      
+          # Remove orphaned Samples.meta if it exists
+          rm -f "$UPM_BUILD/Samples.meta"
+      
+          # Create Samples~.meta if missing
+          if [ -d "$UPM_BUILD/Samples~" ] && [ ! -f "$UPM_BUILD/Samples~.meta" ]; then
+            echo "Creating Samples~.meta"
+            cat > "$UPM_BUILD/Samples~.meta" <<EOF
+          fileFormatVersion: 2
+          guid: $(uuidgen | tr -d '-')
+          folderAsset: yes
+          timeCreated: $(date +%s)
+          licenseType: Free
+          DefaultImporter:
+            externalObjects: {}
+            userData:
+            assetBundleName:
+            assetBundleVariant:
+          EOF
+              fi
+          
+              echo "UPM package build complete"
+          
+              # Save build path for next step
+              echo "UPM_BUILD=$UPM_BUILD" >> $GITHUB_ENV
 
-          # Replace original package contents with prepared version
-          rm -rf "$PACKAGE_SRC"
-          mkdir -p "$(dirname "$PACKAGE_SRC")"
-          mv "$TMP_DIR" "$PACKAGE_SRC"
-
-          echo "UPM package structure ready"
-
-      - name: Push package to upm branch
+      - name: Push clean package to upm branch
+        shell: bash
         run: |
+          set -euo pipefail
+      
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
       
-          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-      
-          echo "Publishing package from: $PACKAGE_SRC"
-      
-          if [ ! -f "$PACKAGE_SRC/package.json" ]; then
-            echo "::error ::package.json not found in $PACKAGE_SRC"
+          if [ -z "${UPM_BUILD:-}" ]; then
+            echo "::error ::UPM_BUILD path not set"
             exit 1
           fi
       
-          # Save package contents
-          TMP_DIR=$(mktemp -d)
-          cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
+          echo "Publishing from clean UPM build: $UPM_BUILD"
       
-          # Create fresh upm branch
+          # Sanity check
+          if [ ! -f "$UPM_BUILD/package.json" ]; then
+            echo "::error ::package.json missing in UPM build"
+            exit 1
+          fi
+      
+          # Create orphan upm branch
           git checkout --orphan upm
           git rm -rf . || true
       
-          # Copy package contents to repo root
-          cp -R "$TMP_DIR/." .
+          # Copy ONLY the package contents to repo root
+          cp -R "$UPM_BUILD/." .
+      
+          # Final safety: ensure unity_project did not leak
+          rm -rf unity_project || true
       
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
           git push -f origin upm
+
 
   createRelease:
     runs-on: ubuntu-22.04
