@@ -129,41 +129,36 @@ jobs:
               # Save build path for next step
               echo "UPM_BUILD=$UPM_BUILD" >> $GITHUB_ENV
 
-      - name: Push clean package to upm branch
-        shell: bash
+      - name: Push package to upm branch
         run: |
-          set -euo pipefail
-      
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
       
-          if [ -z "${UPM_BUILD:-}" ]; then
-            echo "::error ::UPM_BUILD path not set"
-            exit 1
-          fi
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
       
-          echo "Publishing from clean UPM build: $UPM_BUILD"
+          echo "Publishing package from: $PACKAGE_SRC"
       
-          # Sanity check
-          if [ ! -f "$UPM_BUILD/package.json" ]; then
-            echo "::error ::package.json missing in UPM build"
-            exit 1
-          fi
+          # Save package contents
+          TMP_DIR=$(mktemp -d)
+          cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
       
-          # Create orphan upm branch
+          # Create fresh upm branch
           git checkout --orphan upm
           git rm -rf . || true
       
-          # Copy ONLY the package contents to repo root
-          cp -R "$UPM_BUILD/." .
-      
-          # Final safety: ensure unity_project did not leak
-          rm -rf unity_project || true
+          # Copy package contents to repo root
+          cp -R "$TMP_DIR/." .
       
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
+          
+          # Push the upm branch
           git push -f origin upm
-
+      
+          # Also push a version tag
+          VERSION="${{ needs.determineVersion.outputs.package_version }}"
+          git tag -a "v$VERSION" -m "Release $VERSION"
+          git push origin "v$VERSION"
 
   createRelease:
     runs-on: ubuntu-22.04
