@@ -8,6 +8,9 @@
     "name": "Your Name or Company",
     "url": "https://github.com/yourcompany"
   },
+  "dependencies": {
+    "com.unity.textmeshpro": "^3.0.6"
+  },
   "samples": [
     {
       "displayName": "Example Scene",
