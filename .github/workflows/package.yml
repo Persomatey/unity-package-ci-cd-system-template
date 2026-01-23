@@ -228,24 +228,23 @@ jobs:
           # Create staging directory OUTSIDE repo
           STAGE_DIR="$(mktemp -d)"
       
-          # Copy clean UPM package contents
+          # Copy clean contents
           rsync -av \
             --exclude=".git" \
             --exclude=".github" \
             ./ "$STAGE_DIR/"
       
-          # Create .tgz
+          # Create .tgz in workspace
           tar -czf "$TGZ_NAME" -C "$STAGE_DIR" .
       
-          # Create .zip
-          (cd "$STAGE_DIR" && zip -r "../$ZIP_NAME" .)
+          # Create .zip in workspace
+          (cd "$STAGE_DIR" && zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" .)
       
           echo "tgz=$TGZ_NAME" >> "$GITHUB_OUTPUT"
           echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
       
           echo "Created archives:"
           ls -lah "$TGZ_NAME" "$ZIP_NAME"
-
 
       - name: Create release
         uses: softprops/action-gh-release@v1
