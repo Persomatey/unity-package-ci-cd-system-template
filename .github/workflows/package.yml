@@ -209,6 +209,11 @@ jobs:
           echo "Generated release notes:"
           cat release_notes.md
 
+      - name: Debug release assets
+        run: |
+          echo "Workspace contents:"
+          ls -lah
+
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
@@ -219,3 +224,4 @@ jobs:
             ${{ steps.tarball.outputs.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
