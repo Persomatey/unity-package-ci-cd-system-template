@@ -174,11 +174,6 @@ jobs:
       
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-
-          echo "" >> release_notes.md
-          echo "## Install via Package Manager" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "https://github.com/${{ github.repository }}.git#upm" >> release_notes.md
       
           echo "## Commits in this release" > release_notes.md
           echo "" >> release_notes.md
@@ -188,6 +183,11 @@ jobs:
           else
             git log --reverse "$BEFORE..$AFTER" --pretty=format:"### %h — %s%n%n%b%n" >> release_notes.md
           fi
+
+          echo "" >> release_notes.md
+          echo "## Install via Package Manager" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "https://github.com/${{ github.repository }}.git#upm" >> release_notes.md
       
           echo "Generated release notes:"
           cat release_notes.md
