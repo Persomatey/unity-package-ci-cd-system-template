@@ -226,10 +226,11 @@ jobs:
 
           echo "Creating tarball: $ARCHIVE_NAME"
 
-          # IMPORTANT:
-          # The upm branch already has the clean package at repo root
-          # So we archive the root contents
-          tar -czf "$ARCHIVE_NAME" .
+          # Create archive from parent directory to avoid self-inclusion
+          tar -czf "$ARCHIVE_NAME" \
+            --exclude=".git" \
+            --exclude=".github" \
+            .
 
           echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
