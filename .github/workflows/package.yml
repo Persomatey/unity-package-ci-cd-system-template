@@ -226,11 +226,17 @@ jobs:
 
           echo "Creating tarball: $ARCHIVE_NAME"
 
-          # Create archive from parent directory to avoid self-inclusion
-          tar -czf "$ARCHIVE_NAME" \
+          # Create staging directory OUTSIDE repo
+          STAGE_DIR="$(mktemp -d)"
+
+          # Copy clean UPM package contents
+          rsync -av \
             --exclude=".git" \
             --exclude=".github" \
-            .
+            ./ "$STAGE_DIR/"
+
+          # Create archive from staging dir
+          tar -czf "$ARCHIVE_NAME" -C "$STAGE_DIR" .
 
           echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
