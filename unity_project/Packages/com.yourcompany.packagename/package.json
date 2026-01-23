@@ -6,7 +6,7 @@
   "documentationUrl": "https://github.com/Persomatey/unity-package-ci-cd-system-template/blob/main/README.md",
   "changelogUrl": "https://github.com/Persomatey/unity-package-ci-cd-system-template/releases",
   "license": "MIT",
-  "licenseUrl": "https://raw.githubusercontent.com/Persomatey/unity-package-ci-cd-system-template/main/LICENSE.md",
+  "licensesUrl": "https://raw.githubusercontent.com/Persomatey/unity-package-ci-cd-system-template/main/LICENSE.md",
   "unity": "6000.0",
   "author": {
     "name": "Your Name or Company",
