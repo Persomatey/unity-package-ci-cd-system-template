@@ -130,19 +130,16 @@ jobs:
               echo "UPM_BUILD=$UPM_BUILD" >> $GITHUB_ENV
 
       - name: Create UPM package tarball
+        id: tarball
         run: |
-          set -euo pipefail
-      
           VERSION="${{ needs.determineVersion.outputs.package_version }}"
           PACKAGE_NAME="${{ env.PACKAGE_NAME }}"
           UPM_BUILD="${{ env.UPM_BUILD }}"
       
           ARCHIVE_NAME="$PACKAGE_NAME-$VERSION.tgz"
-      
-          echo "Creating tarball: $ARCHIVE_NAME"
           tar -czf "$ARCHIVE_NAME" -C "$UPM_BUILD" .
       
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+          echo "archive=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
 
       - name: Push package to upm branch
         run: |
@@ -219,6 +216,6 @@ jobs:
           name: Release ${{ needs.determineVersion.outputs.version }}
           body_path: release_notes.md
           files: |
-            ${{ env.ARCHIVE_NAME }}
+            ${{ steps.tarball.outputs.archive }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
