@@ -91,25 +91,15 @@ jobs:
           echo "Building clean UPM package from: $PACKAGE_SRC"
           echo "UPM build dir: $UPM_BUILD"
       
-          # Copy everything EXCEPT Samples
-          rsync -av \
-            --exclude="Samples" \
-            "$PACKAGE_SRC/" \
-            "$UPM_BUILD/"
+          rsync -av --exclude="Samples" "$PACKAGE_SRC/" "$UPM_BUILD/"
       
-          # Convert Samples → Samples~
           if [ -d "$PACKAGE_SRC/Samples" ]; then
-            echo "Converting Samples → Samples~"
             mkdir -p "$UPM_BUILD/Samples~"
             rsync -av "$PACKAGE_SRC/Samples/" "$UPM_BUILD/Samples~/"
           fi
       
-          # Remove orphaned Samples.meta if it exists
           rm -f "$UPM_BUILD/Samples.meta"
-      
-          # Create Samples~.meta if missing
           if [ -d "$UPM_BUILD/Samples~" ] && [ ! -f "$UPM_BUILD/Samples~.meta" ]; then
-            echo "Creating Samples~.meta"
             cat > "$UPM_BUILD/Samples~.meta" <<EOF
           fileFormatVersion: 2
           guid: $(uuidgen | tr -d '-')
@@ -123,10 +113,7 @@ jobs:
             assetBundleVariant:
           EOF
               fi
-          
               echo "UPM package build complete"
-          
-              # Save build path for next step
               echo "UPM_BUILD=$UPM_BUILD" >> $GITHUB_ENV
 
       - name: Create UPM package tarball
@@ -146,28 +133,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
       
-          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-      
-          echo "Publishing package from: $PACKAGE_SRC"
-      
-          # Save package contents
           TMP_DIR=$(mktemp -d)
+          PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
           cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
       
-          # Create fresh upm branch
           git checkout --orphan upm
           git rm -rf . || true
       
-          # Copy package contents to repo root
           cp -R "$TMP_DIR/." .
-      
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
-          
-          # Push the upm branch
           git push -f origin upm
       
-          # Also push a version tag
           VERSION="${{ needs.determineVersion.outputs.package_version }}"
           git tag -a "v$VERSION" -m "Release $VERSION"
           git push origin "v$VERSION"
@@ -218,32 +195,29 @@ jobs:
       
           VERSION="${{ needs.determineVersion.outputs.version }}"
           PACKAGE_NAME="${{ env.PACKAGE_NAME }}"
+          UPM_BUILD="${{ needs.pushUpm.outputs.UPM_BUILD }}" # Use saved UPM_BUILD if needed
       
-          TGZ_NAME="${PACKAGE_NAME}-${VERSION}.tgz"
-          ZIP_NAME="${PACKAGE_NAME}-${VERSION}.zip"
+          # Create a temp staging dir outside the repo
+          STAGE_DIR=$(mktemp -d)
+          rsync -av --exclude=".git" --exclude=".github" "$PROJECT_PATH/Packages/$PACKAGE_NAME/" "$STAGE_DIR/"
       
-          echo "Creating archives:"
-          echo " - $TGZ_NAME"
-          echo " - $ZIP_NAME"
+          TGZ_NAME="$PACKAGE_NAME-$VERSION.tgz"
+          ZIP_NAME="$PACKAGE_NAME-$VERSION.zip"
       
-          STAGE_DIR="$(mktemp -d)"
+          # Create .tgz and .zip **outside repo**
+          tar -czf "$STAGE_DIR/$TGZ_NAME" -C "$STAGE_DIR" .
+          (cd "$STAGE_DIR" && zip -r "$STAGE_DIR/$ZIP_NAME" .)
       
-          rsync -av \
-            --exclude=".git" \
-            --exclude=".github" \
-            ./ "$STAGE_DIR/"
+          # Copy artifacts to workspace for GitHub release upload
+          cp "$STAGE_DIR/$TGZ_NAME" "$GITHUB_WORKSPACE/"
+          cp "$STAGE_DIR/$ZIP_NAME" "$GITHUB_WORKSPACE/"
       
-          # Create .tgz in workspace
-          tar -czf "$TGZ_NAME" -C "$STAGE_DIR" .
-      
-          # Create .zip in workspace
-          (cd "$STAGE_DIR" && zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" .)
-      
-          echo "tgz=$TGZ_NAME" >> "$GITHUB_OUTPUT"
-          echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          echo "tgz=$GITHUB_WORKSPACE/$TGZ_NAME" >> $GITHUB_OUTPUT
+          echo "zip=$GITHUB_WORKSPACE/$ZIP_NAME" >> $GITHUB_OUTPUT
       
           echo "Created archives:"
-          ls -lah "$TGZ_NAME" "$ZIP_NAME"
+          ls -lah "$GITHUB_WORKSPACE/$TGZ_NAME" "$GITHUB_WORKSPACE/$ZIP_NAME"
+
 
       - name: Create release
         uses: softprops/action-gh-release@v1
