@@ -129,6 +129,21 @@ jobs:
               # Save build path for next step
               echo "UPM_BUILD=$UPM_BUILD" >> $GITHUB_ENV
 
+      - name: Create UPM package tarball
+        run: |
+          set -euo pipefail
+      
+          VERSION="${{ needs.determineVersion.outputs.package_version }}"
+          PACKAGE_NAME="${{ env.PACKAGE_NAME }}"
+          UPM_BUILD="${{ env.UPM_BUILD }}"
+      
+          ARCHIVE_NAME="$PACKAGE_NAME-$VERSION.tgz"
+      
+          echo "Creating tarball: $ARCHIVE_NAME"
+          tar -czf "$ARCHIVE_NAME" -C "$UPM_BUILD" .
+      
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
       - name: Push package to upm branch
         run: |
           git config user.name "github-actions[bot]"
@@ -197,13 +212,13 @@ jobs:
           echo "Generated release notes:"
           cat release_notes.md
 
-
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.determineVersion.outputs.version }}
           name: Release ${{ needs.determineVersion.outputs.version }}
           body_path: release_notes.md
-
+          files: |
+            ${{ env.ARCHIVE_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
