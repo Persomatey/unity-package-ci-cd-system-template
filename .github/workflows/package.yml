@@ -133,8 +133,12 @@ jobs:
           set -euo pipefail
       
           PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-          
+      
           echo "Preparing clean UPM branch..."
+      
+          # Configure Git identity so commits work
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions@users.noreply.github.com"
       
           # Create a temporary staging dir with only package contents
           TMP_DIR=$(mktemp -d)
