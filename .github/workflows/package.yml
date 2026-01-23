@@ -204,9 +204,11 @@ jobs:
           TGZ_NAME="$PACKAGE_NAME-$VERSION.tgz"
           ZIP_NAME="$PACKAGE_NAME-$VERSION.zip"
       
-          # Create .tgz and .zip **outside repo**
-          tar -czf "$STAGE_DIR/$TGZ_NAME" -C "$STAGE_DIR" .
-          (cd "$STAGE_DIR" && zip -r "$STAGE_DIR/$ZIP_NAME" .)
+          # Create .tgz outside the staging folder
+          tar -czf "$GITHUB_WORKSPACE/$TGZ_NAME" -C "$STAGE_DIR" .
+          
+          # Create .zip outside the staging folder
+          (cd "$STAGE_DIR" && zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" .)
       
           # Copy artifacts to workspace for GitHub release upload
           cp "$STAGE_DIR/$TGZ_NAME" "$GITHUB_WORKSPACE/"
