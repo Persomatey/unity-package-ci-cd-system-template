@@ -209,39 +209,43 @@ jobs:
           echo "Generated release notes:"
           cat release_notes.md
 
-      - name: Debug release assets
-        run: |
-          echo "Workspace contents:"
-          ls -lah
-
-      - name: Create UPM tarball
-        id: tarball
+      - name: Create UPM archives (.tgz and .zip)
+        id: archives
         shell: bash
         run: |
           set -euo pipefail
-
+      
           VERSION="${{ needs.determineVersion.outputs.version }}"
           PACKAGE_NAME="${{ env.PACKAGE_NAME }}"
-          ARCHIVE_NAME="${PACKAGE_NAME}-${VERSION}.tgz"
-
-          echo "Creating tarball: $ARCHIVE_NAME"
-
+      
+          TGZ_NAME="${PACKAGE_NAME}-${VERSION}.tgz"
+          ZIP_NAME="${PACKAGE_NAME}-${VERSION}.zip"
+      
+          echo "Creating archives:"
+          echo " - $TGZ_NAME"
+          echo " - $ZIP_NAME"
+      
           # Create staging directory OUTSIDE repo
           STAGE_DIR="$(mktemp -d)"
-
+      
           # Copy clean UPM package contents
           rsync -av \
             --exclude=".git" \
             --exclude=".github" \
             ./ "$STAGE_DIR/"
+      
+          # Create .tgz
+          tar -czf "$TGZ_NAME" -C "$STAGE_DIR" .
+      
+          # Create .zip
+          (cd "$STAGE_DIR" && zip -r "../$ZIP_NAME" .)
+      
+          echo "tgz=$TGZ_NAME" >> "$GITHUB_OUTPUT"
+          echo "zip=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+      
+          echo "Created archives:"
+          ls -lah "$TGZ_NAME" "$ZIP_NAME"
 
-          # Create archive from staging dir
-          tar -czf "$ARCHIVE_NAME" -C "$STAGE_DIR" .
-
-          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
-
-          echo "Created archive:"
-          ls -lah "$ARCHIVE_NAME"
 
       - name: Create release
         uses: softprops/action-gh-release@v1
