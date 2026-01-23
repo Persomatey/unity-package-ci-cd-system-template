@@ -195,31 +195,24 @@ jobs:
       
           VERSION="${{ needs.determineVersion.outputs.version }}"
           PACKAGE_NAME="${{ env.PACKAGE_NAME }}"
-          UPM_BUILD="${{ needs.pushUpm.outputs.UPM_BUILD }}" # Use saved UPM_BUILD if needed
-      
-          # Create a temp staging dir outside the repo
+          
+          # Temp staging dir
           STAGE_DIR=$(mktemp -d)
           rsync -av --exclude=".git" --exclude=".github" "$PROJECT_PATH/Packages/$PACKAGE_NAME/" "$STAGE_DIR/"
       
           TGZ_NAME="$PACKAGE_NAME-$VERSION.tgz"
           ZIP_NAME="$PACKAGE_NAME-$VERSION.zip"
       
-          # Create .tgz outside the staging folder
+          # Write both archives outside the staging folder
           tar -czf "$GITHUB_WORKSPACE/$TGZ_NAME" -C "$STAGE_DIR" .
-          
-          # Create .zip outside the staging folder
           (cd "$STAGE_DIR" && zip -r "$GITHUB_WORKSPACE/$ZIP_NAME" .)
       
-          # Copy artifacts to workspace for GitHub release upload
-          cp "$STAGE_DIR/$TGZ_NAME" "$GITHUB_WORKSPACE/"
-          cp "$STAGE_DIR/$ZIP_NAME" "$GITHUB_WORKSPACE/"
-      
+          # Set outputs for GitHub release
           echo "tgz=$GITHUB_WORKSPACE/$TGZ_NAME" >> $GITHUB_OUTPUT
           echo "zip=$GITHUB_WORKSPACE/$ZIP_NAME" >> $GITHUB_OUTPUT
       
           echo "Created archives:"
           ls -lah "$GITHUB_WORKSPACE/$TGZ_NAME" "$GITHUB_WORKSPACE/$ZIP_NAME"
-
 
       - name: Create release
         uses: softprops/action-gh-release@v1
