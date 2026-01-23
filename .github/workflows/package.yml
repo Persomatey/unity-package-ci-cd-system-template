@@ -214,6 +214,28 @@ jobs:
           echo "Workspace contents:"
           ls -lah
 
+      - name: Create UPM tarball
+        id: tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${{ needs.determineVersion.outputs.version }}"
+          PACKAGE_NAME="${{ env.PACKAGE_NAME }}"
+          ARCHIVE_NAME="${PACKAGE_NAME}-${VERSION}.tgz"
+
+          echo "Creating tarball: $ARCHIVE_NAME"
+
+          # IMPORTANT:
+          # The upm branch already has the clean package at repo root
+          # So we archive the root contents
+          tar -czf "$ARCHIVE_NAME" .
+
+          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+
+          echo "Created archive:"
+          ls -lah "$ARCHIVE_NAME"
+
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
