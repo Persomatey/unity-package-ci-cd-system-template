@@ -130,24 +130,42 @@ jobs:
 
       - name: Push package to upm branch
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions@users.noreply.github.com"
+          set -euo pipefail
       
-          TMP_DIR=$(mktemp -d)
           PACKAGE_SRC="$PROJECT_PATH/Packages/$PACKAGE_NAME"
-          cp -R "$PACKAGE_SRC/." "$TMP_DIR/"
+          
+          echo "Preparing clean UPM branch..."
       
+          # Create a temporary staging dir with only package contents
+          TMP_DIR=$(mktemp -d)
+          rsync -av --exclude="*.tgz" --exclude="*.zip" --exclude=".git" --exclude=".github" "$PACKAGE_SRC/" "$TMP_DIR/"
+      
+          # Remove any leftover tarballs just in case
+          rm -f "$TMP_DIR/"*.tgz "$TMP_DIR/"*.zip
+      
+          # Switch to a fresh orphan branch
           git checkout --orphan upm
           git rm -rf . || true
       
+          # Copy only the package files into the repo root
           cp -R "$TMP_DIR/." .
+      
+          # Optional: create a minimal .gitignore to prevent accidental commits of archives
+          echo "*.tgz" > .gitignore
+          echo "*.zip" >> .gitignore
+      
           git add .
           git commit -m "Release ${{ needs.determineVersion.outputs.package_version }}"
+      
+          # Force push upm branch
           git push -f origin upm
       
+          # Push version tag
           VERSION="${{ needs.determineVersion.outputs.package_version }}"
           git tag -a "v$VERSION" -m "Release $VERSION"
           git push origin "v$VERSION"
+      
+          echo "UPM branch updated cleanly."
 
   createRelease:
     runs-on: ubuntu-22.04
