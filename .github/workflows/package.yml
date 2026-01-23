@@ -254,7 +254,8 @@ jobs:
           name: Release ${{ needs.determineVersion.outputs.version }}
           body_path: release_notes.md
           files: |
-            ${{ steps.tarball.outputs.archive }}
+            ${{ steps.archives.outputs.tgz }}
+            ${{ steps.archives.outputs.zip }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
