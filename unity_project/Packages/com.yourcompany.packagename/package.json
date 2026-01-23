@@ -5,6 +5,7 @@
   "description": "A short description of what this package does.",
   "documentationUrl": "https://github.com/Persomatey/unity-package-ci-cd-system-template/blob/main/README.md",
   "changelogUrl": "https://github.com/Persomatey/unity-package-ci-cd-system-template/releases",
+  "license": "MIT",
   "licenseUrl": "https://github.com/Persomatey/unity-package-ci-cd-system-template/blob/main/LICENSE.md",
   "unity": "6000.0",
   "author": {
