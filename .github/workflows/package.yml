@@ -1,3 +1,8 @@
+# AUTHOR: Hunter Goodin
+# DESCRIPTION: Automates building, versioning, and publishing Unity packages using GitHub Actions.
+# NOTES: Required environmnet fields: `PROJECT_PATH`, `PROJECT_NAME` 
+#        Please check the README for clearer instructions. 
+
 name: Build and Release Unity Package
 
 on:
