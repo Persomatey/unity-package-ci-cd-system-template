@@ -76,7 +76,7 @@ Used to manually version bump the version number. Should be in the format `X.Y.Z
 	  - Ex: If the last version before triggering this workflow is `v0.0.42`, and the workflow was triggered with `v0.1.0`, the next `build.yml` workflow run will create the version tag `v0.1.1`. 
 
 ## Set up  
-1. Fork/clone this repository (rename it to match your package or project)
+1. Click  "Use this template" > "Create a new repository", continue with your preferred setup 
 2. Create initial version tag
 	1. Navigate to your GitHub version tags page
       `github.com/username_or_org/repo_name/releases/new`
