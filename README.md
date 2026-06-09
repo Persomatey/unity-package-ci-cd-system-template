@@ -77,19 +77,11 @@ Used to manually version bump the version number. Should be in the format `X.Y.Z
 
 ## Set up  
 1. Click  "Use this template" > "Create a new repository", continue with your preferred setup 
-2. Create initial version tag
-	1. Navigate to your GitHub version tags page
-      `github.com/username_or_org/repo_name/releases/new`
-	2. Click "Tag: Select Tag"
-	3. Set tag to v0.0.0
-	4. Click "Create"
-	5. Set "Release title"
-	6. Click "Publish release"
-3. (Optional -- doesn't really affect anything) Rename your Unity project name to whatever you want
+2. (Optional -- doesn't really affect anything) Rename your Unity project name to whatever you want
 	- `unity_project/` -> `MyAmazingUnityPackage/` 
-4. Rename your Unity package folder
+3. Rename your Unity package folder
 	- `unity_project/Packages/com.yourcompany.packagename/` -> `unity_project/Packages/com.amazeproductions.thebestpackageever/`
-5. Edit package JSON contents in `unity_project/Packages/com.yourcompany.packagename/package.json` 
+4. Edit package JSON contents in `unity_project/Packages/com.yourcompany.packagename/package.json` 
 	- Change the following fields:
 		- `name` -> the same as your package folder in Step 4
 		- `displayName` -> the way you want your package named in the Package Manager
@@ -105,24 +97,24 @@ Used to manually version bump the version number. Should be in the format `X.Y.Z
 		- `dependencies` -> populate with other package dependencies / respective package versions 
 		- `samples` -> fill out if the default values are not to your liking
 			- only necessary if you're using the Samples tab in the Package Manager, otherwise you can remove this field entirely 
-6. Rename editor AsmDef file at `unity_project/Packages/com.yourcompany.packagename/Editor/com.yourcompany.packagename.Editor.asmdef`
+5. Rename editor AsmDef file at `unity_project/Packages/com.yourcompany.packagename/Editor/com.yourcompany.packagename.Editor.asmdef`
 	- `unity_project/Packages/com.yourcompany.packagename/Editor/com.yourcompany.packagename.Editor.asmdef` -> `unity_project/Packages/com.yourcompany.packagename/Editor/com.myamazingcompany.myamazingpackage.Editor.asmdef`
-7. Edit editor AsmDef contents in `unity_project/Packages/com.yourcompany.packagename/Editor/com.yourcompany.packagename.Editor.asmdef`
+6. Edit editor AsmDef contents in `unity_project/Packages/com.yourcompany.packagename/Editor/com.yourcompany.packagename.Editor.asmdef`
 	- Change the following fields:
 		- `name` -> the same as your package folder in Step 4 appended with `.Editor`
 		- `rootNamespace` -> the same as your package folder in Step 4 (except note the namespace's PascalCasing)
 		- `references` -> include one that is the same as your package folder in Step 4 (except note the namespace's PascalCasing) appended with `.Runtime` (just in case you need it in the future)
 			- include any others your scripts need, otherwise you can just leave the Runtime reference 
 		- any other if the default values are not to your liking
-8. Rename runtime AsmDef file at `unity_project/Packages/com.yourcompany.packagename/Runtime/com.yourcompany.packagename.Runtime.asmdef`
+7. Rename runtime AsmDef file at `unity_project/Packages/com.yourcompany.packagename/Runtime/com.yourcompany.packagename.Runtime.asmdef`
 	- `unity_project/Packages/com.yourcompany.packagename/Runtime/com.yourcompany.packagename.Runtime.asmdef` -> `unity_project/Packages/com.yourcompany.packagename/Runtime/com.myamazingcompany.myamazingpackage.Runtime.asmdef`
-9. Edit runtime AsmDef contents in `unity_project/Packages/com.yourcompany.packagename/Runtime/com.yourcompany.packagename.Runtime.asmdef`
+8. Edit runtime AsmDef contents in `unity_project/Packages/com.yourcompany.packagename/Runtime/com.yourcompany.packagename.Runtime.asmdef`
 	- Change the following fields:
 		- `name` -> the same as your package folder in Step 4 appended with `.Runtime`
 		- `rootNamespace` -> the same as your package folder in Step 4 (except note the namespace's PascalCasing) 
 		- `references` -> include any your scripts need, otherwise you can leave this empty 
 		- any other if the default values are not to your liking
-10. Edit/add the namespace in your script(s)
+9. Edit/add the namespace in your script(s)
 	- note the namespace's PascalCasing
 	- <details><summary>Example</summary>
       
@@ -138,10 +130,10 @@ Used to manually version bump the version number. Should be in the format `X.Y.Z
 		}
 		```
 		</details>
-11. In `.github/workflows/package.yml`, in the `env`, set the following variables:
+10. In `.github/workflows/package.yml`, in the `env`, set the following variables:
     - `PROJECT_PATH` (line 12) with the unity project name from Step 3
 	- `PACKAGE_NAME` (line 13) with the unity package name from Step 4
-12. ((optional <i>technically</i>) but <b>HIGHLY</b> suggested) Use Jeff Adulco's Unity GUID Regenerator package
+11. ((optional <i>technically</i>) but <b>HIGHLY</b> suggested) Use Jeff Adulco's Unity GUID Regenerator package
     - If you create multiple packages using this template, this is a **MUST** as it allows users to use all of your packages without conflicting with each other 
     - Doing this at this early stage before you start developing will ensure you don't break any GUID references while you're building because, while Unity GUID Regenerator is good, it isn't perfect and can lead to broken references which are annoying. 
     1. Install using `https://github.com/jeffjadulco/unity-guid-regenerator.git`
