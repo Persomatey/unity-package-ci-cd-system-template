@@ -85,7 +85,7 @@ Used to manually version bump the version number. Should be in the format `X.Y.Z
 	4. Click "Create"
 	5. Set "Release title"
 	6. Click "Publish release"
-3. Rename your Unity project name to whatever you want
+3. (Optional -- doesn't really affect anything) Rename your Unity project name to whatever you want
 	- `unity_project/` -> `MyAmazingUnityPackage/` 
 4. Rename your Unity package folder
 	- `unity_project/Packages/com.yourcompany.packagename/` -> `unity_project/Packages/com.amazeproductions.thebestpackageever/`
